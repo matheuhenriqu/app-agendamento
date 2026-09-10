@@ -102,7 +102,8 @@ function json(data, status = 200) {
 
 function supaCfg(env) {
   const base = (env?.SUPABASE_URL || "").replace(/\/+$/, "");
-  const key = env?.SUPABASE_PUBLISHABLE_KEY || env?.SUPABASE_ANON_KEY || "";
+  // JWT anon primeiro (carrega claim role:anon); publishable como fallback.
+  const key = env?.SUPABASE_ANON_KEY || env?.SUPABASE_PUBLISHABLE_KEY || "";
   return { base, key };
 }
 
@@ -111,6 +112,7 @@ function sbHeaders(key) {
     apikey: key,
     authorization: `Bearer ${key}`,
     "content-type": "application/json",
+    prefer: "return=representation",
   };
 }
 

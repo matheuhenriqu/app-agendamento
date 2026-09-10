@@ -40,7 +40,7 @@ function loadDevVars() {
 loadDevVars();
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
-const SUPABASE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || "";
+const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "";
 const ENV = {
   GROQ_API_KEY: process.env.GROQ_API_KEY || "",
   SUPABASE_URL,

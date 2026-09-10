@@ -4,7 +4,7 @@
 
   // ---- Config pública (publishable key é segura no frontend) ----
   var SUPABASE_URL = "https://muflldkxijpbwklbojto.supabase.co";
-  var SUPABASE_ANON_KEY = "sb_publishable_5l97_489SwpGuiP78MfeqQ_Xa69w6AQ";
+  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11ZmxsZGt4aWpwYndrbGJvanRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNzg0MjIsImV4cCI6MjEwNDY1NDQyMn0.oFkPVg7uUG724jVzlWp6DFwT4rK-QYkoy73r-qzEa0A";
 
   var supabaseClient = null;
   if (window.supabase && window.supabase.createClient) {
