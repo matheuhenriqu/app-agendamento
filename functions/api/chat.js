@@ -9,7 +9,7 @@
  * - SUPABASE_URL (ex.: https://xxx.supabase.co)
  * - SUPABASE_PUBLISHABLE_KEY (aceita fallback SUPABASE_ANON_KEY)
  *
- * Tools (llama-3.3-70b-versatile):
+ * Tools (modelo padrão: openai/gpt-oss-120b, configurável via GROQ_MODEL):
  * - verificar_disponibilidade { data: "YYYY-MM-DD" }
  * - criar_agendamento { cliente_nome, cliente_telefone, servico_id, data_hora }
  */
@@ -19,14 +19,19 @@ const SYSTEM_PROMPT = [
   "Seja ágil e objetiva: no máximo 2 a 3 frases curtas por resposta.",
   "HOJE é a data atual informada no contexto. Resolva datas relativas (hoje, amanhã, dia 12) para YYYY-MM-DD.",
   "Fluxo: 1) descubra serviço + data; 2) SEMPRE chame verificar_disponibilidade antes de oferecer horário; 3) colete nome + telefone; 4) só então chame criar_agendamento.",
-  "Nunca confirme horário sem chamar verificar_disponibilidade. Nunca invente horários livres, preços ou IDs de serviço.",
+  "REGRA DE OURO: se o usuário perguntar sobre horários, disponibilidade, vagas ou 'quando tem horário', CHAME verificar_disponibilidade IMEDIATAMENTE e responda SOMENTE após o retorno da tool, usando os horários reais retornados.",
+  "Nunca liste serviços fora do catálogo informado no contexto. Nunca invente horários livres, preços ou IDs de serviço.",
   "Para criar o agendamento você precisa dos 4 campos. Se faltar algo, peça só o que falta (1 pergunta por vez).",
   "data_hora deve ser ISO com fuso de São Paulo, ex.: 2026-09-15T14:30:00-03:00.",
   "Após a tool retornar, resuma o resultado em até 3 frases curtas, com tom cordial (máx. 1 emoji).",
 ].join(" ");
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+// Modelo configurável via env (Groq descontinuou o llama-3.3-70b-versatile).
+const DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b";
+function groqModel(env) {
+  return env?.GROQ_MODEL || DEFAULT_GROQ_MODEL;
+}
 const TZ = "America/Sao_Paulo";
 const SLOT_MIN = 30;
 const MAX_TOOL_ROUNDS = 3;
@@ -295,14 +300,14 @@ async function dispatchTool(env, name, args) {
   return JSON.stringify({ erro: `Tool desconhecida: ${name}` });
 }
 
-async function callGroq(apiKey, messages, withTools) {
+async function callGroq(apiKey, model, messages, withTools) {
   let res;
   try {
     res = await fetch(GROQ_URL, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: GROQ_MODEL,
+        model,
         messages,
         temperature: 0.6,
         max_tokens: 300,
@@ -342,6 +347,10 @@ export async function onRequestPost(context) {
     const body = await context.request.json().catch(() => ({}));
     const message = typeof body.message === "string" ? body.message.trim() : "";
     const history = Array.isArray(body.history) ? body.history : [];
+    // debug:true → inclui { toolsUsed } na resposta (usado pelo script CLI de teste).
+    const debug = body.debug === true;
+    const toolsUsed = [];
+    const toolCalls = [];
     if (!message) return json({ error: "Campo 'message' é obrigatório." }, 400);
 
     const safeHistory = history
@@ -362,14 +371,40 @@ export async function onRequestPost(context) {
       weekday: "long",
     }).format(new Date());
 
+    // Catálogo real de serviços (evita alucinação e fornece IDs p/ a tool).
+    // Best-effort: se o Supabase falhar aqui, o chat segue sem catálogo.
+    let catalogLine = "";
+    try {
+      const { base, key } = supaCfg(env);
+      if (base && key) {
+        const catRes = await fetch(
+          `${base}/rest/v1/servicos?ativo=eq.true&select=id,nome,preco,duracao_minutos&order=nome`,
+          { headers: sbHeaders(key) }
+        );
+        if (catRes.ok) {
+          const list = await catRes.json().catch(() => []);
+          if (Array.isArray(list) && list.length) {
+            catalogLine =
+              "\nCatálogo real (use SÓ estes; IDs para criar_agendamento):\n" +
+              list
+                .map((s) => `- ${s.nome} | id=${s.id} | R$ ${s.preco} | ${s.duracao_minutos}min`)
+                .join("\n");
+          }
+        }
+      }
+    } catch {
+      catalogLine = "";
+    }
+
     const messages = [
-      { role: "system", content: `${SYSTEM_PROMPT}\nContexto: hoje é ${today} (${TZ}).` },
+      { role: "system", content: `${SYSTEM_PROMPT}\nContexto: hoje é ${today} (${TZ}).${catalogLine}` },
       ...safeHistory,
       { role: "user", content: message.slice(0, 2000) },
     ];
 
     // Loop de tool calling: modelo -> tools -> modelo (até MAX_TOOL_ROUNDS).
-    let data = await callGroq(apiKey, messages, true);
+    const model = groqModel(env);
+    let data = await callGroq(apiKey, model, messages, true);
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       const msg = data?.choices?.[0]?.message;
       const calls = msg?.tool_calls;
@@ -391,23 +426,28 @@ export async function onRequestPost(context) {
         let result;
         try {
           result = await dispatchTool(env, tc?.function?.name, args);
+          toolsUsed.push(tc?.function?.name || "desconhecida");
         } catch (toolErr) {
           result = JSON.stringify({
             erro: `Falha ao executar ${tc?.function?.name || "tool"}: ${String(toolErr).slice(0, 200)}`,
           });
+          toolsUsed.push(`${tc?.function?.name || "desconhecida"}:erro`);
+        }
+        if (debug) {
+          toolCalls.push({ name: tc?.function?.name || "?", args, result: String(result).slice(0, 1000) });
         }
         messages.push({ role: "tool", tool_call_id: tc.id, content: result });
       }
 
       const lastRound = round === MAX_TOOL_ROUNDS - 1;
-      data = await callGroq(apiKey, messages, !lastRound);
+      data = await callGroq(apiKey, model, messages, !lastRound);
     }
 
     const reply =
       data?.choices?.[0]?.message?.content?.trim() ||
       "Desculpe, não entendi. Pode repetir?";
 
-    return json({ reply });
+    return json(debug ? { reply, debug: { toolsUsed, toolCalls } } : { reply });
   } catch (err) {
     // Erros vindos da Groq já trazem status + mensagem legível ("Erro na API Groq: ...").
     if (err?.apiError) {
