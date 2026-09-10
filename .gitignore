@@ -1,4 +1,5 @@
 # === Credenciais e variáveis de ambiente ===
+.dev.vars
 .env
 .env.*
 !.env.example

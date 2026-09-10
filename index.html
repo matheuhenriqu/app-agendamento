@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Agende seu horário pelo chat — rápido e fácil." />
+  <title>Agendamento Online</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Supabase JS v2 via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <main class="phone" aria-label="Chat de agendamento">
+    <header class="chat-header">
+      <div class="avatar" aria-hidden="true">✂️</div>
+      <div class="header-info">
+        <strong class="header-name">Agendamento Online</strong>
+        <span class="header-status"><span class="dot"></span>online</span>
+      </div>
+    </header>
+
+    <section id="feed" class="feed" aria-live="polite" aria-label="Mensagens"></section>
+
+    <div id="typing" class="typing" hidden aria-label="Atendente digitando">
+      <span></span><span></span><span></span>
+    </div>
+
+    <form id="form" class="composer" autocomplete="off">
+      <label class="sr-only" for="input">Digite sua mensagem</label>
+      <input
+        id="input"
+        type="text"
+        placeholder="Digite sua mensagem…"
+        maxlength="1000"
+        autofocus
+      />
+      <button type="submit" aria-label="Enviar mensagem">➤</button>
+    </form>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
