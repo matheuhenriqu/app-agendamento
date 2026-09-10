@@ -1,0 +1,44 @@
+# === Credenciais e variáveis de ambiente ===
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Chaves de API (Supabase / Groq) - nunca versionar
+# Mantidas via .env (bloqueado acima). Exceções explícitas abaixo:
+supabase*.key.json
+groq*.key.json
+*supabase_key*
+*groq_key*
+
+# === Sistema operacional ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Logs e temporários ===
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.tmp
+*.tmp
+.tmp/
+tmp/
+temp/
+
+# === Dependências e build (Frontend Vanilla + Cloudflare Pages) ===
+node_modules/
+dist/
+build/
+.wrangler/
+.cloudflare/
+functions/node_modules/
+
+# === Editores e IDEs ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
