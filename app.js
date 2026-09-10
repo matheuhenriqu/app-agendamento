@@ -94,12 +94,30 @@
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ message: message, history: history.slice(-20) }),
-    }).then(function (res) {
-      return res.json().then(function (data) {
-        if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
-        return data.reply;
-      });
-    });
+    }).then(
+      function (res) {
+        return res
+          .json()
+          .catch(function () {
+            return {};
+          })
+          .then(function (data) {
+            if (!res.ok) {
+              console.error("Erro retornado pela API:", { status: res.status, body: data });
+              throw new Error(data.error || data.details || "HTTP " + res.status);
+            }
+            if (!data.reply) {
+              console.error("Erro retornado pela API:", { status: res.status, body: data });
+              throw new Error("Resposta vazia do servidor.");
+            }
+            return data.reply;
+          });
+      },
+      function (networkErr) {
+        console.error("Erro retornado pela API:", networkErr);
+        throw new Error("Falha de rede. Verifique sua conexão.");
+      }
+    );
   }
 
   form.addEventListener("submit", function (ev) {
@@ -122,8 +140,8 @@
       })
       .catch(function (err) {
         setTyping(false);
-        console.error(err);
-        addMessage("Falha de conexão. Tente de novo em instantes.", "bot");
+        console.error("Erro retornado pela API:", err);
+        addMessage("⚠️ " + (err.message || "Falha de conexão. Tente de novo em instantes."), "bot");
       })
       .then(function () {
         sendBtn.disabled = false;

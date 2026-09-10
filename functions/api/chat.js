@@ -81,10 +81,17 @@ const TOOLS = [
   },
 ];
 
+const JSON_HEADERS = {
+  "content-type": "application/json; charset=utf-8",
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, POST, OPTIONS",
+  "access-control-allow-headers": "content-type, authorization",
+};
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8" },
+    headers: JSON_HEADERS,
   });
 }
 
@@ -289,22 +296,30 @@ async function dispatchTool(env, name, args) {
 }
 
 async function callGroq(apiKey, messages, withTools) {
-  const res = await fetch(GROQ_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages,
-      temperature: 0.6,
-      max_tokens: 300,
-      ...(withTools ? { tools: TOOLS, tool_choice: "auto" } : {}),
-    }),
-  });
-  if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    const err = new Error("Falha na Groq.");
+  let res;
+  try {
+    res = await fetch(GROQ_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages,
+        temperature: 0.6,
+        max_tokens: 300,
+        ...(withTools ? { tools: TOOLS, tool_choice: "auto" } : {}),
+      }),
+    });
+  } catch (networkErr) {
+    const err = new Error(`Erro na API Groq: falha de rede (${String(networkErr).slice(0, 200)})`);
     err.status = 502;
-    err.details = t.slice(0, 500);
+    err.apiError = err.message;
+    throw err;
+  }
+  if (!res.ok) {
+    const groqErrText = await res.text().catch(() => "").then((t) => t.slice(0, 500));
+    const err = new Error(`Erro na API Groq: ${groqErrText || `HTTP ${res.status}`}`);
+    err.status = res.status;
+    err.apiError = err.message;
     throw err;
   }
   return res.json().catch(() => ({}));
@@ -314,7 +329,15 @@ export async function onRequestPost(context) {
   try {
     const env = context?.env || {};
     const apiKey = env.GROQ_API_KEY;
-    if (!apiKey) return json({ error: "GROQ_API_KEY não configurada no servidor." }, 500);
+    if (!apiKey) {
+      return json(
+        {
+          error:
+            "Configuração ausente: GROQ_API_KEY não foi encontrada nas variáveis de ambiente do Cloudflare.",
+        },
+        500
+      );
+    }
 
     const body = await context.request.json().catch(() => ({}));
     const message = typeof body.message === "string" ? body.message.trim() : "";
@@ -365,7 +388,14 @@ export async function onRequestPost(context) {
         } catch {
           args = {};
         }
-        const result = await dispatchTool(env, tc?.function?.name, args);
+        let result;
+        try {
+          result = await dispatchTool(env, tc?.function?.name, args);
+        } catch (toolErr) {
+          result = JSON.stringify({
+            erro: `Falha ao executar ${tc?.function?.name || "tool"}: ${String(toolErr).slice(0, 200)}`,
+          });
+        }
         messages.push({ role: "tool", tool_call_id: tc.id, content: result });
       }
 
@@ -379,12 +409,20 @@ export async function onRequestPost(context) {
 
     return json({ reply });
   } catch (err) {
+    // Erros vindos da Groq já trazem status + mensagem legível ("Erro na API Groq: ...").
+    if (err?.apiError) {
+      return json({ error: err.apiError }, err.status || 502);
+    }
     const status = err?.status || 500;
     return json(
-      { error: status === 502 ? "Falha na Groq." : "Erro interno.", details: String(err.details || err).slice(0, 300) },
+      { error: status === 502 ? "Erro na API Groq." : "Erro interno.", details: String(err?.details || err).slice(0, 300) },
       status
     );
   }
+}
+
+export async function onRequestOptions() {
+  return new Response(null, { status: 204, headers: JSON_HEADERS });
 }
 
 export async function onRequestGet() {
