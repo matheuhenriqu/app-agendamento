@@ -59,6 +59,7 @@ drop policy if exists "Leitura publica de servicos ativos" on public.servicos;
 drop policy if exists "Leitura publica da agenda" on public.configuracao_agenda;
 drop policy if exists "Insercao anonima de agendamentos" on public.agendamentos;
 drop policy if exists "Leitura anonima de agendamentos por telefone" on public.agendamentos;
+drop policy if exists "Leitura anonima de horarios ocupados" on public.agendamentos;
 
 -- Serviços: qualquer pessoa (anon) pode ler serviços ativos
 create policy "Leitura publica de servicos ativos"
@@ -87,6 +88,15 @@ create policy "Leitura anonima de agendamentos por telefone"
   on public.agendamentos
   for select
   to authenticated
+  using (true);
+
+-- Agendamentos: leitura anonima de horários ocupados (necessária p/ tool
+-- verificar_disponibilidade via REST com publishable key). Expõe data_hora/status;
+-- para produção restrinja colunas via VIEW se precisar ocultar telefones/nomes.
+create policy "Leitura anonima de horarios ocupados"
+  on public.agendamentos
+  for select
+  to anon, authenticated
   using (true);
 
 -- ------------------------------------------------------------
