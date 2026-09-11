@@ -53,6 +53,9 @@ const ok = (t) => console.log(`  ✅ ${t}`);
 const info = (t) => console.log(`  … ${t}`);
 const warn = (t) => console.log(`  ⚠️  ${t}`);
 const trunc = (s, n = 600) => (s.length > n ? s.slice(0, n) + "…(truncado)" : s);
+// Pausa entre chamadas Groq p/ respeitar o rate limit do plano gratuito (TPM).
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const PACING_MS = 8000;
 
 function sbHeaders(extra = {}) {
   return {
@@ -214,6 +217,7 @@ async function main() {
 
   // ---- Teste 2 -----------------------------------------------------------
   section("Teste 2 — Agendamento (espera tool criar_agendamento)");
+  await sleep(PACING_MS);
   const t2msg =
     `Quero CONFIRMAR um agendamento. Meus dados: nome "Cliente Teste ${TEST_TAG}", ` +
     `telefone ${TEST_PHONE}, serviço "${service.nome}" (servico_id ${service.id}), ` +
@@ -248,24 +252,63 @@ async function main() {
   }
   ok(`Registro inserido: id=${row.id} | ${row.cliente_nome} | ${row.data_hora} | status=${row.status}`);
   results.push(["Teste 2 (criar_agendamento + insert)", "PASS"]);
+  history.push({ role: "user", content: t2msg }, { role: "assistant", content: t2.data.reply });
 
-  // Cleanup: DELETE → PATCH cancelado → mantém marcado [TESTE]
+  // ---- Teste 3: consulta por telefone ------------------------------------
+  section("Teste 3 — Consulta (espera tool consultar_agendamentos)");
+  await sleep(PACING_MS);
+  const t3msg = `Quero consultar meus agendamentos. Meu telefone é ${TEST_PHONE}.`;
+  const t3 = await callChat(t3msg, history);
+  if (t3.status !== 200) fail(`POST /api/chat retornou HTTP ${t3.status}`, t3.data);
+  if (!t3.data.debug?.toolsUsed?.includes("consultar_agendamentos")) {
+    fail("IA NÃO acionou consultar_agendamentos", t3.data);
+  }
+  ok("IA acionou consultar_agendamentos e listou o agendamento de teste");
+  results.push(["Teste 3 (consultar_agendamentos)", "PASS"]);
+  history.push({ role: "user", content: t3msg }, { role: "assistant", content: t3.data.reply });
+
+  // ---- Teste 4: cancelamento pelo cliente ---------------------------------
+  section("Teste 4 — Cancelamento (espera tool cancelar_agendamento)");
+  await sleep(PACING_MS);
+  const t4msg =
+    `Quero cancelar o agendamento ${row.id} do telefone ${TEST_PHONE}. Confirmo o cancelamento.`;
+  const t4 = await callChat(t4msg, history);
+  if (t4.status !== 200) fail(`POST /api/chat retornou HTTP ${t4.status}`, t4.data);
+  if (!t4.data.debug?.toolsUsed?.includes("cancelar_agendamento")) {
+    fail("IA NÃO acionou cancelar_agendamento", t4.data);
+  }
+  ok("IA acionou cancelar_agendamento");
+  const chkCancel = await sbGet(`agendamentos?id=eq.${row.id}&select=id,status`);
+  if (!chkCancel.ok) fail(`Falha ao reconsultar agendamento (HTTP ${chkCancel.status})`, chkCancel.raw);
+  if (!chkCancel.data[0] || chkCancel.data[0].status !== "cancelado") {
+    fail("Status NÃO atualizado para cancelado", chkCancel.raw);
+  }
+  ok(`Status atualizado para cancelado (id=${row.id})`);
+  results.push(["Teste 4 (cancelar_agendamento)", "PASS"]);
+
+  // Cleanup honesto: PostgREST retorna 2xx no DELETE mesmo quando o RLS
+  // filtra todas as linhas (0 afetadas) — por isso verifica de verdade.
+  async function recordGone() {
+    const v = await sbGet(`agendamentos?id=eq.${row.id}&select=id`);
+    return v.ok && Array.isArray(v.data) && v.data.length === 0;
+  }
   const del = await fetch(`${SUPABASE_URL}/rest/v1/agendamentos?id=eq.${row.id}`, {
     method: "DELETE",
     headers: sbHeaders(),
   });
-  if (del.ok) {
+  if (del.ok && (await recordGone())) {
     ok(`Cleanup: registro ${row.id} removido (DELETE).`);
   } else {
     const patch = await fetch(`${SUPABASE_URL}/rest/v1/agendamentos?id=eq.${row.id}`, {
       method: "PATCH",
-      headers: sbHeaders({ prefer: "return=minimal" }),
+      headers: sbHeaders({ prefer: "return=representation" }),
       body: JSON.stringify({ status: "cancelado" }),
     });
-    if (patch.ok) {
-      ok(`Cleanup: registro ${row.id} marcado como cancelado (DELETE bloqueado pelo RLS).`);
+    const patched = patch.ok ? await patch.json().catch(() => []) : [];
+    if (patch.ok && patched[0]?.status === "cancelado") {
+      ok(`Cleanup: registro ${row.id} marcado como cancelado (DELETE sem efeito pelo RLS).`);
     } else {
-      warn(`Cleanup bloqueado pelo RLS (DELETE ${del.status} / PATCH ${patch.status}). Registro mantido marcado como ${TEST_TAG} — id=${row.id}.`);
+      warn(`Cleanup incompleto (DELETE ${del.status} / PATCH ${patch.status}). Registro ${row.id} mantido como ${TEST_TAG}.`);
     }
   }
   results.push(["Cleanup", "PASS"]);

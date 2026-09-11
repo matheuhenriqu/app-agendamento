@@ -157,6 +157,35 @@ body {
   background: #f0f0f0;
 }
 
+/* Chips de ação rápida: rolagem horizontal suave, sem scrollbar invasiva */
+.chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 12px;
+  background: transparent;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  border: 1px solid #25d366;
+  background: #fff;
+  color: #075e54;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.chip:hover { background: #dcf8c6; }
+.chip:active { transform: scale(0.96); }
+
 .composer input {
   flex: 1;
   border: none;

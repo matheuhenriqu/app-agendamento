@@ -12,6 +12,8 @@
  * Tools (modelo padrão: openai/gpt-oss-120b, configurável via GROQ_MODEL):
  * - verificar_disponibilidade { data: "YYYY-MM-DD" }
  * - criar_agendamento { cliente_nome, cliente_telefone, servico_id, data_hora }
+ * - consultar_agendamentos { cliente_telefone }
+ * - cancelar_agendamento { agendamento_id, cliente_telefone }
  */
 
 const SYSTEM_PROMPT = [
@@ -22,6 +24,9 @@ const SYSTEM_PROMPT = [
   "REGRA DE OURO: se o usuário perguntar sobre horários, disponibilidade, vagas ou 'quando tem horário', CHAME verificar_disponibilidade IMEDIATAMENTE e responda SOMENTE após o retorno da tool, usando os horários reais retornados.",
   "Nunca liste serviços fora do catálogo informado no contexto. Nunca invente horários livres, preços ou IDs de serviço.",
   "Para criar o agendamento você precisa dos 4 campos. Se faltar algo, peça só o que falta (1 pergunta por vez).",
+  "Se o cliente pedir para CONSULTAR ou CANCELAR agendamento, peça educadamente o número de telefone cadastrado antes de chamar qualquer tool.",
+  "Para consultar, chame consultar_agendamentos com o telefone. Para cancelar, consulte primeiro, mostre as opções e chame cancelar_agendamento só após confirmação, conferindo que o telefone é o mesmo do cadastro.",
+  "Ao cancelar com sucesso, confirme em mensagem curta e cordial (ex.: pronto, cancelado).",
   "data_hora deve ser ISO com fuso de São Paulo, ex.: 2026-09-15T14:30:00-03:00.",
   "Após a tool retornar, resuma o resultado em até 3 frases curtas, com tom cordial (máx. 1 emoji).",
 ].join(" ");
@@ -80,6 +85,48 @@ const TOOLS = [
           },
         },
         required: ["cliente_nome", "cliente_telefone", "servico_id", "data_hora"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "consultar_agendamentos",
+      description:
+        "Lista os agendamentos futuros com status confirmado de um cliente. Exija o telefone cadastrado antes de chamar.",
+      parameters: {
+        type: "object",
+        properties: {
+          cliente_telefone: {
+            type: "string",
+            description: "Telefone/WhatsApp cadastrado (só dígitos com DDD).",
+          },
+        },
+        required: ["cliente_telefone"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cancelar_agendamento",
+      description:
+        "Cancela um agendamento (status -> cancelado). Chame SOMENTE após o cliente confirmar, passando o ID e o telefone do cadastro (validados contra o banco).",
+      parameters: {
+        type: "object",
+        properties: {
+          agendamento_id: {
+            type: "string",
+            description: "UUID do agendamento a cancelar.",
+          },
+          cliente_telefone: {
+            type: "string",
+            description: "Telefone do cadastro, para conferência de titularidade.",
+          },
+        },
+        required: ["agendamento_id", "cliente_telefone"],
         additionalProperties: false,
       },
     },
@@ -388,9 +435,88 @@ function notifyTelegram(extras, info) {
   else return task; // fallback (ex.: teste CLI): chamador pode aguardar
 }
 
+/** Compara telefones tolerando prefixo de país (55) e formatação. */
+function phonesMatch(a, b) {
+  const da = String(a || "").replace(/\D/g, "");
+  const db = String(b || "").replace(/\D/g, "");
+  if (da.length < 8 || db.length < 8) return false;
+  return da === db || da.endsWith(db) || db.endsWith(da);
+}
+
+/** Executa consultar_agendamentos via REST. Retorna string JSON. */
+async function toolConsultarAgendamentos(env, args) {
+  const { base, key } = supaCfg(env);
+  if (!base || !key) return JSON.stringify({ erro: "Supabase não configurado no servidor." });
+  const fone = String(args?.cliente_telefone || "").replace(/\D/g, "");
+  if (fone.length < 8) {
+    return JSON.stringify({ erro: "cliente_telefone inválido. Peça o DDD + número cadastrado." });
+  }
+  const nowIso = new Date().toISOString();
+  const res = await fetch(
+    `${base}/rest/v1/agendamentos?cliente_telefone=eq.${encodeURIComponent(fone)}` +
+      `&data_hora=gte.${encodeURIComponent(nowIso)}&status=eq.confirmado` +
+      `&select=id,cliente_nome,data_hora,status,servicos(nome,preco)&order=data_hora.asc`,
+    { headers: sbHeaders(key) }
+  );
+  if (!res.ok) {
+    return JSON.stringify({ erro: "Falha ao consultar agendamentos.", status: res.status });
+  }
+  const list = await res.json().catch(() => []);
+  const itens = (Array.isArray(list) ? list : []).map((a) => ({
+    agendamento_id: a.id,
+    servico: (a.servicos && a.servicos.nome) || null,
+    preco: (a.servicos && a.servicos.preco) ?? null,
+    data_hora: a.data_hora,
+    quando: fmtDataHoraSP(a.data_hora),
+  }));
+  return JSON.stringify({ total: itens.length, agendamentos: itens });
+}
+
+/** Executa cancelar_agendamento via REST (com conferência de titularidade). */
+async function toolCancelarAgendamento(env, args) {
+  const { base, key } = supaCfg(env);
+  if (!base || !key) return JSON.stringify({ erro: "Supabase não configurado no servidor." });
+  const id = String(args?.agendamento_id || "").trim();
+  const fone = String(args?.cliente_telefone || "").replace(/\D/g, "");
+  if (!isValidUuid(id)) return JSON.stringify({ erro: "agendamento_id inválido (UUID esperado)." });
+  if (fone.length < 8) return JSON.stringify({ erro: "cliente_telefone inválido." });
+
+  const get = await fetch(
+    `${base}/rest/v1/agendamentos?id=eq.${encodeURIComponent(id)}` +
+      `&select=id,cliente_nome,cliente_telefone,data_hora,status,servicos(nome)`,
+    { headers: sbHeaders(key) }
+  );
+  if (!get.ok) return JSON.stringify({ erro: "Falha ao localizar agendamento.", status: get.status });
+  const row = (await get.json().catch(() => []))[0];
+  if (!row) return JSON.stringify({ erro: "Agendamento não encontrado." });
+  if (String(row.status).toLowerCase() === "cancelado") {
+    return JSON.stringify({ erro: "Este agendamento já está cancelado." });
+  }
+  if (!phonesMatch(row.cliente_telefone, fone)) {
+    return JSON.stringify({ erro: "O telefone informado não confere com o cadastro deste agendamento." });
+  }
+
+  const patch = await fetch(`${base}/rest/v1/agendamentos?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { ...sbHeaders(key), prefer: "return=representation" },
+    body: JSON.stringify({ status: "cancelado" }),
+  });
+  if (!patch.ok) {
+    const t = await patch.text().catch(() => "");
+    return JSON.stringify({ erro: "Falha ao cancelar.", status: patch.status, detalhes: t.slice(0, 300) });
+  }
+  const svc = (row.servicos && row.servicos.nome) || "agendamento";
+  return JSON.stringify({
+    ok: true,
+    resumo: `${svc} de ${row.cliente_nome} em ${fmtDataHoraSP(row.data_hora)} cancelado.`,
+  });
+}
+
 async function dispatchTool(env, name, args, extras) {
   if (name === "verificar_disponibilidade") return toolVerificarDisponibilidade(env, args);
   if (name === "criar_agendamento") return toolCriarAgendamento(env, args, extras);
+  if (name === "consultar_agendamentos") return toolConsultarAgendamentos(env, args);
+  if (name === "cancelar_agendamento") return toolCancelarAgendamento(env, args);
   return JSON.stringify({ erro: `Tool desconhecida: ${name}` });
 }
 
@@ -408,7 +534,24 @@ function groqError(message, status) {
   // Retentável: falha de rede (502), rate limit (429) e 5xx.
   // 4xx (auth inválida, modelo inexistente etc.) falham direto, sem retry.
   err.retryable = status === 502 || status === 429 || (status >= 500 && status <= 599);
+  err.retryAfterMs = 0;
   return err;
+}
+
+/** Respeita o "retry-after" da Groq (header ou "try again in Xs" no corpo). */
+function parseRetryAfterMs(res, bodyText) {
+  try {
+    const h = res?.headers?.get?.("retry-after");
+    if (h != null && h !== "") {
+      const s = Number(h);
+      if (!Number.isNaN(s) && s >= 0) return Math.min(s * 1000, 30000);
+    }
+  } catch {
+    /* ignora */
+  }
+  const m = /try again in ([\d.]+)s/i.exec(bodyText || "");
+  if (m) return Math.min(Number(m[1]) * 1000 + 500, 30000);
+  return 0;
 }
 
 function isEmptyMessage(data) {
@@ -442,6 +585,7 @@ async function callGroq(apiKey, model, messages, withTools) {
       if (!res.ok) {
         const groqErrText = await res.text().catch(() => "").then((t) => t.slice(0, 500));
         const err = groqError(`Erro na API Groq: ${groqErrText || `HTTP ${res.status}`}`, res.status);
+        err.retryAfterMs = parseRetryAfterMs(res, groqErrText);
         // 400 tool_use_failed = o modelo gerou JSON inválido (falha transitória
         // do próprio modelo, não erro do cliente) → vale retentar.
         if (res.status === 400 && groqErrText.includes("tool_use_failed")) {
@@ -458,7 +602,8 @@ async function callGroq(apiKey, model, messages, withTools) {
       lastErr = err;
       const canRetry = err?.retryable === true && attempt < MAX_GROQ_ATTEMPTS;
       if (!canRetry) throw err;
-      const delay = GROQ_BACKOFF_BASE_MS * 2 ** (attempt - 1); // 500ms, 1000ms
+      const backoff = GROQ_BACKOFF_BASE_MS * 2 ** (attempt - 1); // 500ms, 1000ms
+      const delay = Math.max(backoff, Math.min(err.retryAfterMs || 0, 30000));
       console.warn(
         `[chat] Groq tentativa ${attempt}/${MAX_GROQ_ATTEMPTS} falhou (HTTP ${err.status ?? "?"}): ${String(err.message).slice(0, 160)} — retry em ${delay}ms`
       );

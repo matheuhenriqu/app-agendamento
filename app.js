@@ -120,10 +120,9 @@
     );
   }
 
-  form.addEventListener("submit", function (ev) {
-    ev.preventDefault();
-    var text = input.value.trim();
-    if (!text) return;
+  function submitText(text) {
+    text = String(text || "").trim();
+    if (!text || sendBtn.disabled) return;
 
     addMessage(text, "user");
     history.push({ role: "user", content: text });
@@ -146,6 +145,18 @@
       .then(function () {
         sendBtn.disabled = false;
       });
+  }
+
+  form.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    submitText(input.value);
+  });
+
+  // Chips de ação rápida: enviam a mensagem como se digitada.
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function (chip) {
+    chip.addEventListener("click", function () {
+      submitText(chip.getAttribute("data-msg") || chip.textContent);
+    });
   });
 
   // ---- Boot ----
