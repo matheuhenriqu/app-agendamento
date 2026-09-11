@@ -108,18 +108,29 @@ const hhmmSP = (iso) =>
   new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TZ }).format(new Date(iso));
 
 // Simula o POST /api/chat chamando o handler real com contexto mockado.
+// Inclui waitUntil (Cloudflare) e as vars opcionais do Telegram.
 async function callChat(message, history = []) {
   const { onRequestPost } = await import("../functions/api/chat.js");
   const payload = { message, history, debug: true };
   console.log(`  → POST /api/chat payload: ${trunc(JSON.stringify(payload))}`);
+  const bg = [];
   const req = new Request("http://localhost/api/chat", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload),
   });
-  const res = await onRequestPost({ env: { ...ENV }, request: req });
+  const res = await onRequestPost({
+    env: {
+      ...ENV,
+      TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || "",
+      TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID || "",
+    },
+    request: req,
+    waitUntil: (p) => bg.push(Promise.resolve(p).catch(() => {})),
+  });
+  await Promise.allSettled(bg); // drena tarefas de fundo (ex.: Telegram)
   const data = await res.json().catch(() => ({}));
-  console.log(`  ← status ${res.status} | tools usadas: ${(data.debug?.toolsUsed || []).join(", ") || "(nenhuma)"}`);
+  console.log(`  ← status ${res.status} | tools usadas: ${(data.debug?.toolsUsed || []).join(", ") || "(nenhuma)"} | telegram: ${data.debug?.telegram || "n/a"}`);
   for (const c of data.debug?.toolCalls || []) {
     console.log(`  🔧 tool ${c.name} args=${trunc(JSON.stringify(c.args), 300)}`);
     console.log(`     resultado: ${trunc(String(c.result), 500)}`);

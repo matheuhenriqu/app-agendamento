@@ -235,7 +235,7 @@ async function toolVerificarDisponibilidade(env, args) {
 }
 
 /** Executa criar_agendamento via REST do Supabase. Retorna string JSON. */
-async function toolCriarAgendamento(env, args) {
+async function toolCriarAgendamento(env, args, extras) {
   const { base, key } = supaCfg(env);
   if (!base || !key) return JSON.stringify({ erro: "Supabase não configurado no servidor." });
 
@@ -254,7 +254,7 @@ async function toolCriarAgendamento(env, args) {
 
   // Confere serviço existe e está ativo
   const svcRes = await fetch(
-    `${base}/rest/v1/servicos?id=eq.${encodeURIComponent(servicoId)}&select=id,nome,ativo`,
+    `${base}/rest/v1/servicos?id=eq.${encodeURIComponent(servicoId)}&select=id,nome,preco,ativo`,
     { headers: sbHeaders(key) }
   );
   if (!svcRes.ok) return JSON.stringify({ erro: "Falha ao validar serviço.", status: svcRes.status });
@@ -289,6 +289,19 @@ async function toolCriarAgendamento(env, args) {
     return JSON.stringify({ erro: "Falha ao salvar agendamento.", status: insRes.status, detalhes: t.slice(0, 300) });
   }
   const row = (await insRes.json().catch(() => []))[0] || {};
+
+  // Notifica o dono no Telegram (não bloqueante; falha silenciosa).
+  const pendingTelegram = notifyTelegram(extras, {
+    nome,
+    fone,
+    servico: svc.nome,
+    preco: svc.preco,
+    dataHora,
+    agendamentoId: row.id || null,
+  });
+  // Sem waitUntil (ex.: teste CLI), aguarda o envio p/ permitir verificação.
+  if (pendingTelegram) await pendingTelegram;
+
   return JSON.stringify({
     ok: true,
     agendamento_id: row.id || null,
@@ -296,9 +309,88 @@ async function toolCriarAgendamento(env, args) {
   });
 }
 
-async function dispatchTool(env, name, args) {
+function escHtml(s) {
+  return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+  })[c]);
+}
+
+function waNumber(fone) {
+  const digits = String(fone || "").replace(/\D/g, "");
+  return digits.length <= 11 ? `55${digits}` : digits;
+}
+
+function fmtDataHoraSP(iso) {
+  const d = new Date(iso);
+  const data = new Intl.DateTimeFormat("pt-BR", { timeZone: TZ }).format(d);
+  const hora = new Intl.DateTimeFormat("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: TZ,
+  }).format(d);
+  return `${data} às ${hora}`;
+}
+
+/**
+ * Dispara alerta de Telegram em segundo plano via context.waitUntil.
+ * Nunca quebra o fluxo do chat: sem config → ignora; falha → console.error.
+ * extras = { context, dbg } repassado pelo onRequestPost (opcional).
+ */
+function notifyTelegram(extras, info) {
+  const context = extras?.context;
+  const env = context?.env || extras?.env || {};
+  const dbg = extras?.dbg;
+  const token = env.TELEGRAM_BOT_TOKEN || "";
+  const chatId = env.TELEGRAM_CHAT_ID || "";
+  if (!token || !chatId) {
+    if (dbg) dbg.telegram = "skipped";
+    return;
+  }
+  const preco = Number(info.preco || 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+  const wa = waNumber(info.fone);
+  const text =
+    `🗓 <b>Novo Agendamento Confirmado!</b>\n` +
+    `<b>Cliente:</b> ${escHtml(info.nome)}\n` +
+    `<b>Telefone:</b> <a href="https://wa.me/${wa}">${escHtml(info.fone)}</a>\n` +
+    `<b>Serviço:</b> ${escHtml(info.servico)} — ${escHtml(preco)}\n` +
+    `<b>Data e Horário:</b> ${escHtml(fmtDataHoraSP(info.dataHora))}` +
+    (info.agendamentoId ? `\n<b>ID:</b> <code>${escHtml(info.agendamentoId)}</code>` : "");
+
+  const task = (async () => {
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML", disable_web_page_preview: true }),
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        console.error(`[chat] Telegram sendMessage falhou (HTTP ${res.status}): ${t.slice(0, 200)}`);
+        if (dbg) dbg.telegram = `failed:${res.status}`;
+      } else if (dbg) {
+        dbg.telegram = "sent";
+      }
+    } catch (e) {
+      console.error(`[chat] Telegram erro: ${String(e).slice(0, 200)}`);
+      if (dbg) dbg.telegram = "error";
+    }
+  })();
+
+  // Cloudflare: responde ao cliente sem esperar o Telegram.
+  if (typeof context?.waitUntil === "function") context.waitUntil(task);
+  else return task; // fallback (ex.: teste CLI): chamador pode aguardar
+}
+
+async function dispatchTool(env, name, args, extras) {
   if (name === "verificar_disponibilidade") return toolVerificarDisponibilidade(env, args);
-  if (name === "criar_agendamento") return toolCriarAgendamento(env, args);
+  if (name === "criar_agendamento") return toolCriarAgendamento(env, args, extras);
   return JSON.stringify({ erro: `Tool desconhecida: ${name}` });
 }
 
@@ -349,7 +441,13 @@ async function callGroq(apiKey, model, messages, withTools) {
       }
       if (!res.ok) {
         const groqErrText = await res.text().catch(() => "").then((t) => t.slice(0, 500));
-        throw groqError(`Erro na API Groq: ${groqErrText || `HTTP ${res.status}`}`, res.status);
+        const err = groqError(`Erro na API Groq: ${groqErrText || `HTTP ${res.status}`}`, res.status);
+        // 400 tool_use_failed = o modelo gerou JSON inválido (falha transitória
+        // do próprio modelo, não erro do cliente) → vale retentar.
+        if (res.status === 400 && groqErrText.includes("tool_use_failed")) {
+          err.retryable = true;
+        }
+        throw err;
       }
       const data = await res.json().catch(() => ({}));
       if (isEmptyMessage(data)) {
@@ -391,6 +489,8 @@ export async function onRequestPost(context) {
     const debug = body.debug === true;
     const toolsUsed = [];
     const toolCalls = [];
+    const dbg = { telegram: "skipped" };
+    const extras = { context, env, dbg };
     if (!message) return json({ error: "Campo 'message' é obrigatório." }, 400);
 
     const safeHistory = history
@@ -465,7 +565,7 @@ export async function onRequestPost(context) {
         }
         let result;
         try {
-          result = await dispatchTool(env, tc?.function?.name, args);
+          result = await dispatchTool(env, tc?.function?.name, args, extras);
           toolsUsed.push(tc?.function?.name || "desconhecida");
         } catch (toolErr) {
           result = JSON.stringify({
@@ -487,7 +587,7 @@ export async function onRequestPost(context) {
       data?.choices?.[0]?.message?.content?.trim() ||
       "Desculpe, não entendi. Pode repetir?";
 
-    return json(debug ? { reply, debug: { toolsUsed, toolCalls } } : { reply });
+    return json(debug ? { reply, debug: { toolsUsed, toolCalls, telegram: dbg.telegram } } : { reply });
   } catch (err) {
     // Erros vindos da Groq já trazem status + mensagem legível ("Erro na API Groq: ...").
     if (err?.apiError) {
