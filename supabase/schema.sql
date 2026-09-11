@@ -18,6 +18,15 @@ create table if not exists public.servicos (
   ativo boolean default true
 );
 
+-- Remove duplicatas antigas preservando apenas um registro por nome
+delete from public.servicos a
+using public.servicos b
+where a.id > b.id and lower(trim(a.nome)) = lower(trim(b.nome));
+
+-- Garante unicidade do nome do serviço no banco
+create unique index if not exists idx_servicos_nome_unico
+  on public.servicos (lower(trim(nome)));
+
 -- ------------------------------------------------------------
 -- Tabela: agendamentos
 -- ------------------------------------------------------------

@@ -46,6 +46,17 @@
     });
   }
 
+  function dedupeServicos(list) {
+    if (!Array.isArray(list)) return [];
+    var seen = {};
+    return list.filter(function (s) {
+      var key = String((s && s.nome) || "").toLowerCase().trim();
+      if (!key || seen[key]) return false;
+      seen[key] = true;
+      return true;
+    });
+  }
+
   function addMessage(text, who) {
     if (!feed) return null;
 
@@ -53,6 +64,7 @@
     div.className = "msg " + (who === "user" ? "out" : "in");
 
     var span = document.createElement("span");
+    span.className = "msg-text";
     span.textContent = text;
 
     var time = document.createElement("span");
@@ -101,7 +113,7 @@
         return res.json();
       })
       .then(function (data) {
-        servicosCache = Array.isArray(data.servicos) ? data.servicos : [];
+        servicosCache = dedupeServicos(data.servicos);
         return servicosCache;
       })
       .catch(function (err) {
@@ -111,8 +123,9 @@
   }
 
   function greeting() {
-    if (servicosCache.length) {
-      var lista = servicosCache
+    var validos = dedupeServicos(servicosCache);
+    if (validos.length) {
+      var lista = validos
         .map(function (s) {
           return "• " + s.nome + " (R$ " + Number(s.preco).toFixed(2) + ")";
         })

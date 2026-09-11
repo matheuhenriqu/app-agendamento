@@ -1,23 +1,22 @@
 /* ==========================================================================
-   WhatsApp Design System — Réplica Fiel (WhatsApp Web & Mobile)
-   Cores Oficiais, Balões com Rabicho (Tails), Doodles e Tipografia Nativa
+   WhatsApp Design System — Réplica Autêntica (WhatsApp Web & Mobile)
+   Cores Oficiais, Doodles Vetoriais, Balões com Rabicho e Responsividade
    ========================================================================== */
 
 :root {
-  /* Cores Oficiais do WhatsApp */
-  --wa-teal-dark: #008069;         /* Header mobile WhatsApp oficial */
-  --wa-teal-deep: #075e54;         /* Header clássico / tom de sombra */
-  --wa-green-action: #00a884;      /* Botão de envio / botões de ação */
+  /* Paleta Oficial do WhatsApp */
+  --wa-teal-dark: #008069;         /* Header oficial do WhatsApp */
+  --wa-teal-deep: #075e54;         /* Sombra e variações do teal */
+  --wa-green-action: #00a884;      /* Botão redondo de ação/envio */
   --wa-green-action-hover: #02906f;
   --wa-accent-blue: #53bdeb;       /* Double check azul de lido (✓✓) */
   --wa-badge-green: #25d366;       /* Selo verificado WhatsApp */
   
   /* Superfícies e Balões */
-  --wa-bg-desktop: #d1d7db;        /* Fundo do WhatsApp Web no desktop */
+  --wa-bg-desktop: #e1e7eb;        /* Fundo do WhatsApp Web no desktop */
   --wa-chat-bg: #efeae2;           /* Fundo clássico com doodles */
   --wa-bubble-in: #ffffff;         /* Balão recebido (branco) */
   --wa-bubble-out: #d9fdd3;        /* Balão enviado (verde claro WhatsApp) */
-  --wa-bubble-out-dark: #c1f2b8;
   
   /* Pílulas de Sistema e Criptografia */
   --wa-sys-date-bg: #ffffff;
@@ -34,8 +33,7 @@
   
   /* Sombras Oficiais */
   --wa-bubble-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
-  --wa-header-shadow: 0 1px 3px rgba(11, 20, 26, 0.15);
-  --wa-card-shadow: 0 6px 18px rgba(11, 20, 26, 0.08), 0 2px 4px rgba(11, 20, 26, 0.04);
+  --wa-header-shadow: 0 1px 3px rgba(11, 20, 26, 0.12);
   
   /* Tipografia */
   --wa-font: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
@@ -97,27 +95,32 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 16px 20px;
   }
 
   .phone {
-    max-width: 520px;
-    height: min(840px, calc(100vh - 40px));
-    border-radius: 12px;
+    max-width: 680px;
+    height: min(880px, calc(100vh - 32px));
+    border-radius: 10px;
     overflow: hidden;
-    box-shadow: var(--wa-card-shadow), 0 12px 28px rgba(0, 0, 0, 0.16);
+    box-shadow: 0 17px 50px 0 rgba(11, 20, 26, 0.19), 0 12px 15px 0 rgba(11, 20, 26, 0.24);
+  }
+
+  /* Na versão desktop do WhatsApp Web não há seta de voltar dentro do chat */
+  .back-btn {
+    display: none !important;
   }
 }
 
 /* ==========================================================================
-   Cabeçalho Oficial do WhatsApp (Teal Green)
+   Cabeçalho Oficial do WhatsApp
    ========================================================================== */
 .chat-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: 60px;
-  padding: 0 12px;
+  padding: 0 14px;
   background: var(--wa-teal-dark);
   color: #ffffff;
   box-shadow: var(--wa-header-shadow);
@@ -129,9 +132,8 @@ html, body {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
-  cursor: pointer;
 }
 
 .back-btn {
@@ -160,13 +162,12 @@ html, body {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #dfe5e7;
-  color: #54656f;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 .header-info {
@@ -179,7 +180,7 @@ html, body {
 .header-name-row {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 
 .header-name {
@@ -240,7 +241,7 @@ html, body {
 }
 
 /* ==========================================================================
-   Feed com Padrão de Doodles do WhatsApp
+   Feed com Padrão de Doodles Oficiais do WhatsApp
    ========================================================================== */
 .feed {
   flex: 1;
@@ -252,10 +253,9 @@ html, body {
   gap: 8px;
   scroll-behavior: smooth;
   background-color: var(--wa-chat-bg);
-  /* Padrão geométrico suave estilo WhatsApp Doodle */
-  background-image: radial-gradient(#d3cbbf 1px, transparent 1px), radial-gradient(#d3cbbf 1px, var(--wa-chat-bg) 1px);
-  background-size: 32px 32px;
-  background-position: 0 0, 16px 16px;
+  /* Textura de doodles vetoriais do WhatsApp */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' opacity='0.06'><g fill='none' stroke='%23000' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'><circle cx='30' cy='30' r='10'/><path d='M30 24v6l4 2'/><path d='M75 25c-3 0-5 2-5 5v10c0 4 3 6 7 6s7-2 7-6V30c0-3-2-5-5-5h-4z'/><path d='M84 32h4a3 3 0 0 1 0 6h-4'/><path d='M130 25l-8 16h16z'/><path d='M25 85a8 8 0 1 0 16 0c0-6-8-12-8-12s-8 6-8 12z'/><rect x='70' y='75' width='22' height='16' rx='4'/><circle cx='81' cy='83' r='4'/><path d='M125 75v18m0-12a5 5 0 0 1 5-5'/><path d='M20 135h20m-20-4h14m-14 8h16'/><path d='M75 130a8 8 0 1 1 12 7l-2 5-5-2a8 8 0 0 1-5-10z'/><path d='M125 135l6-6 4 4-6 6z'/></g></svg>");
+  background-repeat: repeat;
   position: relative;
 }
 
@@ -275,7 +275,7 @@ html, body {
    ========================================================================== */
 .system-bubble {
   align-self: center;
-  max-width: 90%;
+  max-width: 86%;
   text-align: center;
   border-radius: 7.5px;
   font-size: 0.76rem;
@@ -315,7 +315,7 @@ html, body {
 .msg {
   position: relative;
   max-width: 82%;
-  padding: 7px 11px 8px 12px;
+  padding: 6px 10px 8px 12px;
   border-radius: 7.5px;
   font-size: 0.92rem;
   line-height: 1.42;
@@ -323,6 +323,11 @@ html, body {
   white-space: pre-wrap;
   box-shadow: var(--wa-bubble-shadow);
   animation: wa-bubble-appear 0.16s ease-out forwards;
+}
+
+.msg-text {
+  display: inline;
+  word-break: break-word;
 }
 
 @keyframes wa-bubble-appear {
@@ -380,7 +385,7 @@ html, body {
   border-left: 8px solid var(--wa-bubble-out);
 }
 
-/* Metadados de Hora e Checkmarks (✓✓) */
+/* Metadados de Hora e Checkmarks (✓✓) com posicionamento impecável */
 .msg .time {
   display: inline-flex;
   align-items: center;
@@ -388,14 +393,17 @@ html, body {
   float: right;
   font-size: 0.68rem;
   color: var(--wa-text-secondary);
-  margin-left: 10px;
-  margin-top: 5px;
+  margin-left: 12px;
+  margin-top: 6px;
   line-height: 1;
   user-select: none;
+  position: relative;
+  bottom: -2px;
+  white-space: nowrap;
 }
 
 .msg.out .time {
-  color: #53bdeb; /* Cor azul do check WhatsApp */
+  color: #53bdeb; /* Azul oficial de leitura */
 }
 
 .msg .time .wa-time-str {
@@ -406,6 +414,13 @@ html, body {
   display: inline-block;
   vertical-align: middle;
   flex-shrink: 0;
+}
+
+/* Clearfix para isolar o float do horário sem encostar no texto */
+.msg::after {
+  content: "";
+  display: block;
+  clear: both;
 }
 
 /* ==========================================================================
@@ -480,11 +495,12 @@ html, body {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 6px 12px;
+  padding: 8px 14px;
   background: transparent;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 .chips-container::-webkit-scrollbar {
@@ -496,9 +512,9 @@ html, body {
   scroll-snap-align: start;
   background: #ffffff;
   color: var(--wa-teal-dark);
-  border: 1px solid rgba(0, 128, 105, 0.25);
-  border-radius: 18px;
-  padding: 7px 14px;
+  border: 1px solid rgba(0, 128, 105, 0.3);
+  border-radius: 20px;
+  padding: 8px 16px;
   font-family: var(--wa-font);
   font-size: 0.82rem;
   font-weight: 500;
@@ -507,13 +523,15 @@ html, body {
   align-items: center;
   gap: 6px;
   box-shadow: 0 1px 2px rgba(11, 20, 26, 0.08);
-  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .chip:hover {
   background: #e7f7f4;
   border-color: var(--wa-teal-dark);
-  box-shadow: 0 2px 5px rgba(0, 128, 105, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 128, 105, 0.2);
+  transform: translateY(-1px);
 }
 
 .chip:active {
@@ -527,7 +545,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
   background: transparent;
   position: relative;
   z-index: 10;

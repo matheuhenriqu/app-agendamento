@@ -702,10 +702,17 @@ export async function onRequestPost(context) {
         );
         if (catRes.ok) {
           const list = await catRes.json().catch(() => []);
-          if (Array.isArray(list) && list.length) {
+          const seen = new Set();
+          const deduped = (Array.isArray(list) ? list : []).filter((s) => {
+            const k = String(s?.nome || "").toLowerCase().trim();
+            if (!k || seen.has(k)) return false;
+            seen.add(k);
+            return true;
+          });
+          if (deduped.length) {
             catalogLine =
               "\nCatálogo real (use SÓ estes; IDs para criar_agendamento):\n" +
-              list
+              deduped
                 .map((s) => `- ${s.nome} | id=${s.id} | R$ ${s.preco} | ${s.duracao_minutos}min`)
                 .join("\n");
           }
@@ -795,7 +802,14 @@ export async function onRequestGet(context) {
     );
     if (!catRes.ok) return json({ servicos: [] });
     const list = await catRes.json().catch(() => []);
-    return json({ servicos: Array.isArray(list) ? list : [] });
+    const seen = new Set();
+    const deduped = (Array.isArray(list) ? list : []).filter((s) => {
+      const k = String(s?.nome || "").toLowerCase().trim();
+      if (!k || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    return json({ servicos: deduped });
   } catch {
     return json({ servicos: [] });
   }
