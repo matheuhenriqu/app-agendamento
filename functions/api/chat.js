@@ -302,34 +302,72 @@ async function dispatchTool(env, name, args) {
   return JSON.stringify({ erro: `Tool desconhecida: ${name}` });
 }
 
+const MAX_GROQ_ATTEMPTS = 3;
+const GROQ_BACKOFF_BASE_MS = 500;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function groqError(message, status) {
+  const err = new Error(message);
+  err.status = status;
+  err.apiError = message;
+  // Retentável: falha de rede (502), rate limit (429) e 5xx.
+  // 4xx (auth inválida, modelo inexistente etc.) falham direto, sem retry.
+  err.retryable = status === 502 || status === 429 || (status >= 500 && status <= 599);
+  return err;
+}
+
+function isEmptyMessage(data) {
+  const msg = data?.choices?.[0]?.message;
+  if (!msg) return true;
+  const hasContent = typeof msg.content === "string" && msg.content.trim().length > 0;
+  const hasTools = Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0;
+  return !hasContent && !hasTools;
+}
+
 async function callGroq(apiKey, model, messages, withTools) {
-  let res;
-  try {
-    res = await fetch(GROQ_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.6,
-        max_tokens: 300,
-        ...(withTools ? { tools: TOOLS, tool_choice: "auto" } : {}),
-      }),
-    });
-  } catch (networkErr) {
-    const err = new Error(`Erro na API Groq: falha de rede (${String(networkErr).slice(0, 200)})`);
-    err.status = 502;
-    err.apiError = err.message;
-    throw err;
+  let lastErr = null;
+  for (let attempt = 1; attempt <= MAX_GROQ_ATTEMPTS; attempt++) {
+    try {
+      let res;
+      try {
+        res = await fetch(GROQ_URL, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model,
+            messages,
+            temperature: 0.6,
+            max_tokens: 300,
+            ...(withTools ? { tools: TOOLS, tool_choice: "auto" } : {}),
+          }),
+        });
+      } catch (networkErr) {
+        throw groqError(`Erro na API Groq: falha de rede (${String(networkErr).slice(0, 200)})`, 502);
+      }
+      if (!res.ok) {
+        const groqErrText = await res.text().catch(() => "").then((t) => t.slice(0, 500));
+        throw groqError(`Erro na API Groq: ${groqErrText || `HTTP ${res.status}`}`, res.status);
+      }
+      const data = await res.json().catch(() => ({}));
+      if (isEmptyMessage(data)) {
+        throw groqError("Erro na API Groq: resposta vazia (sem content nem tool_calls).", 502);
+      }
+      return data;
+    } catch (err) {
+      lastErr = err;
+      const canRetry = err?.retryable === true && attempt < MAX_GROQ_ATTEMPTS;
+      if (!canRetry) throw err;
+      const delay = GROQ_BACKOFF_BASE_MS * 2 ** (attempt - 1); // 500ms, 1000ms
+      console.warn(
+        `[chat] Groq tentativa ${attempt}/${MAX_GROQ_ATTEMPTS} falhou (HTTP ${err.status ?? "?"}): ${String(err.message).slice(0, 160)} — retry em ${delay}ms`
+      );
+      await sleep(delay);
+    }
   }
-  if (!res.ok) {
-    const groqErrText = await res.text().catch(() => "").then((t) => t.slice(0, 500));
-    const err = new Error(`Erro na API Groq: ${groqErrText || `HTTP ${res.status}`}`);
-    err.status = res.status;
-    err.apiError = err.message;
-    throw err;
-  }
-  return res.json().catch(() => ({}));
+  throw lastErr;
 }
 
 export async function onRequestPost(context) {
