@@ -30,6 +30,7 @@
   var typing = document.getElementById("typing");
   var headerStatus = document.getElementById("header-status");
   var actionBtn = document.getElementById("btn-action");
+  var chipsContainer = document.getElementById("chips");
 
   function now() {
     return new Date().toLocaleTimeString("pt-BR", {
@@ -44,6 +45,24 @@
         feed.scrollTo({ top: feed.scrollHeight, behavior: "smooth" });
       }
     });
+  }
+
+  // Formatação rica segura estilo WhatsApp (*negrito*, _itálico_, quebras de linha)
+  function formatWhatsAppText(raw) {
+    if (!raw) return "";
+    var escaped = String(raw)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    // Negrito WhatsApp: *texto*
+    escaped = escaped.replace(/\*([^*\n]+)\*/g, "<strong>$1</strong>");
+    // Itálico WhatsApp: _texto_
+    escaped = escaped.replace(/_([^_\n]+)_/g, "<em>$1</em>");
+    // Tachado WhatsApp: ~texto~
+    escaped = escaped.replace(/~([^~\n]+)~/g, "<del>$1</del>");
+    // Quebras de linha
+    escaped = escaped.replace(/\n/g, "<br>");
+    return escaped;
   }
 
   function dedupeServicos(list) {
@@ -65,7 +84,7 @@
 
     var span = document.createElement("span");
     span.className = "msg-text";
-    span.textContent = text;
+    span.innerHTML = formatWhatsAppText(text);
 
     var time = document.createElement("span");
     time.className = "time";
@@ -106,6 +125,85 @@
     actionBtn.setAttribute("aria-label", hasText ? "Enviar mensagem" : "Gravar áudio");
   }
 
+  // ---- Botões de Ação Rápida Dinâmicos & Contextuais ----
+  function renderChips(items) {
+    if (!chipsContainer) return;
+    chipsContainer.innerHTML = "";
+    if (!Array.isArray(items) || items.length === 0) {
+      chipsContainer.style.display = "none";
+      return;
+    }
+    chipsContainer.style.display = "flex";
+    items.forEach(function (it) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip";
+      btn.textContent = it.label;
+      btn.setAttribute("data-msg", it.msg || it.label);
+      btn.addEventListener("click", function () {
+        submitText(it.msg || it.label);
+      });
+      chipsContainer.appendChild(btn);
+    });
+  }
+
+  function updateContextualChips(botText) {
+    var lower = String(botText || "").toLowerCase();
+
+    // 1. Se a IA perguntou sobre dia/data
+    if (
+      lower.includes("qual dia") ||
+      lower.includes("qual data") ||
+      lower.includes("para qual dia") ||
+      lower.includes("que dia") ||
+      lower.includes("qual data você prefere")
+    ) {
+      renderChips([
+        { label: "📅 Hoje", msg: "Hoje" },
+        { label: "📅 Amanhã", msg: "Amanhã" },
+        { label: "📅 Neste Sábado", msg: "Neste sábado" },
+        { label: "💈 Ver Serviços", msg: "Quais serviços vocês têm?" },
+      ]);
+      return;
+    }
+
+    // 2. Se a IA listou horários livres (ex: 09:00, 10:30...)
+    var hourMatches = botText.match(/\b([01]?\d|2[0-3]):[0-5]\d\b/g);
+    if (hourMatches && hourMatches.length >= 2 && (lower.includes("livre") || lower.includes("horário") || lower.includes("disponív"))) {
+      var uniqueHours = [];
+      hourMatches.forEach(function (h) {
+        if (uniqueHours.indexOf(h) === -1 && uniqueHours.length < 5) {
+          uniqueHours.push(h);
+        }
+      });
+      renderChips(
+        uniqueHours.map(function (h) {
+          return { label: "⏰ " + h, msg: "Prefiro às " + h };
+        })
+      );
+      return;
+    }
+
+    // 3. Se a IA perguntou qual serviço
+    if (lower.includes("qual serviço") || lower.includes("qual deles")) {
+      if (servicosCache.length) {
+        renderChips(
+          servicosCache.slice(0, 4).map(function (s) {
+            return { label: "✂️ " + s.nome, msg: s.nome };
+          })
+        );
+        return;
+      }
+    }
+
+    // Padrão inicial
+    renderChips([
+      { label: "💈 Ver Serviços & Preços", msg: "Quais serviços e preços vocês têm?" },
+      { label: "📅 Horários de Amanhã", msg: "Quais horários vocês têm para amanhã?" },
+      { label: "🔍 Consultar Agendamento", msg: "Quero consultar meu agendamento" },
+    ]);
+  }
+
   function loadServicos() {
     return fetch("/api/chat")
       .then(function (res) {
@@ -127,7 +225,7 @@
     if (validos.length) {
       var lista = validos
         .map(function (s) {
-          return "• " + s.nome + " (R$ " + Number(s.preco).toFixed(2) + ")";
+          return "• *" + s.nome + "* (R$ " + Number(s.preco).toFixed(2) + ")";
         })
         .join("\n");
       return "Olá! 👋 Sou o assistente virtual da barbearia.\nTemos os seguintes serviços disponíveis:\n\n" + lista + "\n\nQual serviço e horário você gostaria de agendar?";
@@ -179,19 +277,25 @@
     }
     updateActionIcon();
 
+    // Oculta chips temporariamente enquanto a IA processa
+    renderChips([]);
+
     if (actionBtn) actionBtn.disabled = true;
     setTyping(true);
 
     sendToBackend(text)
       .then(function (reply) {
         setTyping(false);
-        addMessage(reply || "Pode me dar mais detalhes?", "bot");
-        history.push({ role: "assistant", content: reply });
+        var replyText = reply || "Pode me dar mais detalhes?";
+        addMessage(replyText, "bot");
+        history.push({ role: "assistant", content: replyText });
+        updateContextualChips(replyText);
       })
       .catch(function (err) {
         setTyping(false);
         console.error("Erro retornado pela API:", err);
         addMessage("⚠️ " + (err.message || "Falha de conexão. Tente de novo em instantes."), "bot");
+        updateContextualChips("");
       })
       .then(function () {
         if (actionBtn) actionBtn.disabled = false;
@@ -215,13 +319,6 @@
     input.addEventListener("input", updateActionIcon);
   }
 
-  // Chips de ação rápida: enviam a mensagem clicada
-  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function (chip) {
-    chip.addEventListener("click", function () {
-      submitText(chip.getAttribute("data-msg") || chip.textContent);
-    });
-  });
-
   // Botão voltar (recarrega/limpa o chat caso o usuário clique)
   var backBtn = document.querySelector(".back-btn");
   if (backBtn) {
@@ -235,7 +332,9 @@
   // ---- Boot ----
   updateActionIcon();
   loadServicos().then(function () {
-    addMessage(greeting(), "bot");
-    history.push({ role: "assistant", content: greeting() });
+    var initialGreeting = greeting();
+    addMessage(initialGreeting, "bot");
+    history.push({ role: "assistant", content: initialGreeting });
+    updateContextualChips(initialGreeting);
   });
 })();

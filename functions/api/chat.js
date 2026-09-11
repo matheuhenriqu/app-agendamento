@@ -29,6 +29,7 @@ const SYSTEM_PROMPT = [
   "Ao cancelar com sucesso, confirme em mensagem curta e cordial (ex.: pronto, cancelado).",
   "data_hora deve ser ISO com fuso de São Paulo, ex.: 2026-09-15T14:30:00-03:00.",
   "Após a tool retornar, resuma o resultado em até 3 frases curtas, com tom cordial (máx. 1 emoji).",
+  "NUNCA escreva '(aguarde)', marcas de raciocínio ou perguntas repetidas. Seja natural e direta.",
 ].join(" ");
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -606,6 +607,8 @@ async function callGroq(apiKey, model, messages, withTools) {
             model,
             messages,
             temperature: 0.6,
+            frequency_penalty: 0.2,
+            presence_penalty: 0.1,
             max_tokens: 300,
             ...(withTools ? { tools: TOOLS, tool_choice: "auto" } : {}),
           }),
@@ -769,9 +772,31 @@ export async function onRequestPost(context) {
       data = await callGroq(apiKey, model, messages, !lastRound);
     }
 
-    const reply =
-      data?.choices?.[0]?.message?.content?.trim() ||
-      "Desculpe, não entendi. Pode repetir?";
+    function cleanReply(raw) {
+      if (!raw || typeof raw !== "string") return "Desculpe, não entendi. Pode repetir?";
+      let text = raw
+        .replace(/\(aguarde\)/gi, " ")
+        .replace(/\[aguarde\]/gi, " ")
+        .replace(/<think>[\s\S]*?<\/think>/gi, " ")
+        .replace(/([.?!])([A-ZÀ-Úa-zà-ú])/g, "$1 $2")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+
+      const sentences = text.split(/(?<=[.?!])\s+/);
+      const unique = [];
+      for (const s of sentences) {
+        const trimmed = s.trim();
+        if (!trimmed) continue;
+        if (unique.length > 0 && unique[unique.length - 1].toLowerCase() === trimmed.toLowerCase()) {
+          continue;
+        }
+        unique.push(trimmed);
+      }
+      text = unique.join(" ").trim();
+      return text || "Como posso te ajudar hoje?";
+    }
+
+    const reply = cleanReply(data?.choices?.[0]?.message?.content);
 
     return json(debug ? { reply, debug: { toolsUsed, toolCalls, telegram: dbg.telegram } } : { reply });
   } catch (err) {
