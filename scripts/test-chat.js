@@ -311,7 +311,41 @@ async function main() {
       warn(`Cleanup incompleto (DELETE ${del.status} / PATCH ${patch.status}). Registro ${row.id} mantido como ${TEST_TAG}.`);
     }
   }
-  results.push(["Cleanup", "PASS"]);
+  // ---- Teste 5: Segurança e Validação de /api/admin ---------------------
+  section("Teste 5 — Segurança e Endpoint /api/admin (Server-Side Auth)");
+  const { onRequest: onAdminRequest } = await import("../functions/api/admin.js");
+  const adminEnv = { ...ENV, ADMIN_PIN: process.env.ADMIN_PIN || "1234" };
+
+  // 5.1: PIN Inválido deve retornar 401
+  const badReq = new Request("http://localhost/api/admin", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-admin-pin": "pin_errado_9999" },
+    body: JSON.stringify({ pin: "pin_errado_9999" }),
+  });
+  const badRes = await onAdminRequest({ env: adminEnv, request: badReq });
+  if (badRes.status !== 401) fail(`/api/admin aceitou PIN incorreto (HTTP ${badRes.status})`);
+  ok("PIN incorreto rejeitado com HTTP 401 (Autenticação segura)");
+
+  // 5.2: PIN Correto deve autenticar com 200
+  const goodReq = new Request("http://localhost/api/admin", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-admin-pin": adminEnv.ADMIN_PIN },
+    body: JSON.stringify({ pin: adminEnv.ADMIN_PIN }),
+  });
+  const goodRes = await onAdminRequest({ env: adminEnv, request: goodReq });
+  if (goodRes.status !== 200) fail(`/api/admin rejeitou PIN correto (HTTP ${goodRes.status})`);
+  ok("PIN correto autenticado com sucesso (HTTP 200)");
+
+  // 5.3: GET /api/admin?date=YYYY-MM-DD
+  const listReq = new Request(`http://localhost/api/admin?date=${target.ymd}`, {
+    method: "GET",
+    headers: { "x-admin-pin": adminEnv.ADMIN_PIN },
+  });
+  const listRes = await onAdminRequest({ env: adminEnv, request: listReq });
+  if (listRes.status !== 200) fail(`GET /api/admin falhou (HTTP ${listRes.status})`);
+  const listData = await listRes.json();
+  ok(`GET /api/admin retornou ${listData.agendamentos?.length ?? 0} agendamento(s) para ${target.ymd}`);
+  results.push(["Teste 5 (/api/admin Auth + GET)", "PASS"]);
 
   section("Resumo");
   for (const [n, s] of results) console.log(`  ${s === "PASS" ? "✅" : "❌"} ${n}: ${s}`);

@@ -2,45 +2,86 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Agende seu horário pelo chat — rápido e fácil." />
-  <title>Agendamento Online</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="description" content="Agendamento online rápido e inteligente com confirmação em tempo real." />
+  <meta name="theme-color" content="#090d16" />
+  <title>Agendamento Online · Atendimento Rápido</title>
+  <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
   <!-- Supabase JS v2 via CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+  <!-- Efeito de luz ambiente de fundo para desktop -->
+  <div class="ambient-glow" aria-hidden="true"></div>
+
   <main class="phone" aria-label="Chat de agendamento">
     <header class="chat-header">
-      <div class="avatar" aria-hidden="true">✂️</div>
+      <div class="avatar-wrap">
+        <div class="avatar" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="6" cy="6" r="3"></circle>
+            <circle cx="6" cy="18" r="3"></circle>
+            <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
+            <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
+            <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
+          </svg>
+        </div>
+        <span class="status-indicator" title="Atendente disponível"></span>
+      </div>
+
       <div class="header-info">
-        <strong class="header-name">Agendamento Online</strong>
-        <span class="header-status"><span class="dot"></span>online</span>
+        <div class="header-title-row">
+          <strong class="header-name">Agendamento Express</strong>
+          <span class="header-badge">IA Oficial</span>
+        </div>
+        <span class="header-status">
+          <span class="dot"></span>Atendimento 24h · Resposta imediata
+        </span>
       </div>
     </header>
 
     <section id="feed" class="feed" aria-live="polite" aria-label="Mensagens"></section>
 
     <div id="typing" class="typing" hidden aria-label="Atendente digitando">
-      <span></span><span></span><span></span>
+      <span class="typing-label">Atendente digitando</span>
+      <div class="typing-dots">
+        <span></span><span></span><span></span>
+      </div>
     </div>
 
     <div id="chips" class="chips" role="group" aria-label="Ações rápidas">
-      <button type="button" class="chip" data-msg="Quais serviços e preços vocês têm?">💈 Ver Serviços e Preços</button>
-      <button type="button" class="chip" data-msg="Quais horários vocês têm para amanhã?">📅 Horários de Amanhã</button>
-      <button type="button" class="chip" data-msg="Quero consultar meu agendamento">🔍 Consultar Agendamento</button>
+      <button type="button" class="chip" data-msg="Quais serviços e preços vocês têm?">
+        <span class="chip-icon">💈</span> Ver Serviços e Preços
+      </button>
+      <button type="button" class="chip" data-msg="Quais horários vocês têm para amanhã?">
+        <span class="chip-icon">📅</span> Horários de Amanhã
+      </button>
+      <button type="button" class="chip" data-msg="Quero consultar meu agendamento">
+        <span class="chip-icon">🔍</span> Consultar Agendamento
+      </button>
     </div>
 
     <form id="form" class="composer" autocomplete="off">
       <label class="sr-only" for="input">Digite sua mensagem</label>
-      <input
-        id="input"
-        type="text"
-        placeholder="Digite sua mensagem…"
-        maxlength="1000"
-        autofocus
-      />
-      <button type="submit" aria-label="Enviar mensagem">➤</button>
+      <div class="input-wrapper">
+        <input
+          id="input"
+          type="text"
+          placeholder="Digite sua mensagem ou escolha uma opção…"
+          maxlength="1000"
+          autofocus
+        />
+        <button type="submit" aria-label="Enviar mensagem" id="btn-send">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
     </form>
   </main>
 

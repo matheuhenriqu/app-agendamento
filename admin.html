@@ -3,70 +3,155 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Painel administrativo — agenda do dia." />
-  <title>Painel · Agendamentos</title>
+  <meta name="description" content="Painel de controle e gestão de agendamentos em tempo real." />
+  <meta name="theme-color" content="#070a11" />
+  <title>Painel de Controle · Gestão de Agendamentos</title>
+  <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="admin.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+  <!-- Fundo decorativo sutil -->
+  <div class="admin-glow" aria-hidden="true"></div>
+
   <!-- Bloqueio por PIN -->
   <div id="lock" class="lock" role="dialog" aria-modal="true" aria-label="Acesso restrito">
     <form id="lock-form" class="lock-card" autocomplete="off">
-      <div class="lock-icon" aria-hidden="true">🔒</div>
-      <h1>Acesso restrito</h1>
-      <p>Digite o PIN de 4 a 6 dígitos para ver a agenda.</p>
+      <div class="lock-icon-wrap" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+      </div>
+      <h1>Acesso Administrativo</h1>
+      <p>Digite seu PIN de segurança para acessar a agenda operacional.</p>
       <label class="sr-only" for="pin">PIN de acesso</label>
-      <input
-        id="pin"
-        type="password"
-        inputmode="numeric"
-        pattern="[0-9]*"
-        minlength="4"
-        maxlength="6"
-        placeholder="••••"
-        autofocus
-      />
-      <button type="submit">Entrar</button>
-      <p id="lock-error" class="lock-error" hidden>PIN incorreto. Tente de novo.</p>
+      <div class="pin-input-wrap">
+        <input
+          id="pin"
+          type="password"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          minlength="4"
+          maxlength="6"
+          placeholder="••••"
+          autofocus
+        />
+      </div>
+      <button type="submit" id="btn-login">
+        <span>Desbloquear Painel</span>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+        </svg>
+      </button>
+      <p id="lock-error" class="lock-error" hidden>⚠️ PIN incorreto. Verifique e tente novamente.</p>
     </form>
   </div>
 
-  <!-- Painel -->
+  <!-- Painel Principal -->
   <div id="app" class="app" hidden>
     <header class="topbar">
-      <div class="brand">
-        <span class="brand-icon" aria-hidden="true">📅</span>
-        <div>
-          <strong>Painel de Agendamentos</strong>
-          <small id="today-label"></small>
+      <div class="topbar-inner">
+        <div class="brand">
+          <div class="brand-badge-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </div>
+          <div>
+            <div class="brand-title-wrap">
+              <strong>Painel Operacional</strong>
+              <span class="live-tag"><span class="live-dot"></span>Ao Vivo</span>
+            </div>
+            <small id="today-label" class="today-text"></small>
+          </div>
         </div>
-      </div>
-      <div class="controls">
-        <label class="sr-only" for="date">Filtrar por data</label>
-        <input id="date" type="date" />
-        <button id="refresh" type="button" title="Recarregar dados">↻ Atualizar</button>
+
+        <div class="controls">
+          <div class="date-input-wrap">
+            <label class="sr-only" for="date">Filtrar por data</label>
+            <input id="date" type="date" />
+          </div>
+          <button id="refresh" type="button" title="Recarregar dados agora" class="btn-refresh">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            <span>Atualizar</span>
+          </button>
+        </div>
       </div>
     </header>
 
     <main class="content">
-      <section class="kpis" aria-label="Resumo do dia">
-        <div class="kpi">
-          <span class="kpi-label">Agendamentos</span>
+      <!-- Cards de KPI com Cores Duras -->
+      <section class="kpis" aria-label="Resumo métrico do dia">
+        <!-- KPI 1: Agendamentos -->
+        <div class="kpi kpi-blue">
+          <div class="kpi-header">
+            <span class="kpi-label">Agendamentos</span>
+            <div class="kpi-icon-badge blue" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </div>
+          </div>
           <strong id="kpi-total" class="kpi-value">–</strong>
+          <span class="kpi-sub">Total registrado no dia</span>
         </div>
-        <div class="kpi">
-          <span class="kpi-label">Faturamento previsto</span>
+
+        <!-- KPI 2: Faturamento -->
+        <div class="kpi kpi-green">
+          <div class="kpi-header">
+            <span class="kpi-label">Faturamento Previsto</span>
+            <div class="kpi-icon-badge green" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23"></line>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              </svg>
+            </div>
+          </div>
           <strong id="kpi-revenue" class="kpi-value">–</strong>
+          <span class="kpi-sub">Exclui cancelamentos</span>
         </div>
-        <div class="kpi">
-          <span class="kpi-label">Concluídos</span>
+
+        <!-- KPI 3: Concluídos -->
+        <div class="kpi kpi-cyan">
+          <div class="kpi-header">
+            <span class="kpi-label">Concluídos</span>
+            <div class="kpi-icon-badge cyan" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+            </div>
+          </div>
           <strong id="kpi-done" class="kpi-value">–</strong>
+          <span class="kpi-sub">Atendimentos finalizados</span>
         </div>
       </section>
 
-      <p id="state" class="state" role="status"></p>
+      <!-- Mensagem de estado / feedback -->
+      <div id="state" class="state" role="status"></div>
 
+      <!-- Tabela / Grade de Agendamentos -->
       <section class="table-wrap">
+        <div class="table-toolbar">
+          <h2 class="table-title">Grade de Horários</h2>
+          <span class="table-hint">Toque ou clique nas ações para atualizar o status</span>
+        </div>
+
         <table class="agenda" aria-label="Lista de agendamentos">
           <thead>
             <tr>
@@ -74,9 +159,9 @@
               <th scope="col">Cliente</th>
               <th scope="col">WhatsApp</th>
               <th scope="col">Serviço</th>
-              <th scope="col">Preço</th>
+              <th scope="col">Valor</th>
               <th scope="col">Status</th>
-              <th scope="col">Ações</th>
+              <th scope="col">Ações Operacionais</th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>

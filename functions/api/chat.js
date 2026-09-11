@@ -149,8 +149,8 @@ function json(data, status = 200) {
 
 function supaCfg(env) {
   const base = (env?.SUPABASE_URL || "").replace(/\/+$/, "");
-  // JWT anon primeiro (carrega claim role:anon); publishable como fallback.
-  const key = env?.SUPABASE_ANON_KEY || env?.SUPABASE_PUBLISHABLE_KEY || "";
+  // Prioriza service_role key (segura no backend Cloudflare); fallback p/ anon key
+  const key = env?.SUPABASE_SERVICE_ROLE_KEY || env?.SUPABASE_ANON_KEY || env?.SUPABASE_PUBLISHABLE_KEY || "";
   return { base, key };
 }
 
@@ -171,6 +171,18 @@ function isValidDate(s) {
 
 function isValidUuid(s) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s || "");
+}
+
+/** Valida e higieniza número de telefone brasileiro (DDD de 11 a 99 + 8 ou 9 dígitos). */
+function sanitizeBrazilianPhone(raw) {
+  let d = String(raw || "").replace(/\D/g, "");
+  if (d.startsWith("55") && (d.length === 12 || d.length === 13)) {
+    d = d.slice(2);
+  }
+  if (!/^[1-9][0-9](?:9[0-9]{8}|[2-8][0-9]{7})$/.test(d)) {
+    return null;
+  }
+  return d;
 }
 
 function toMin(hhmm) {
@@ -243,13 +255,21 @@ async function toolVerificarDisponibilidade(env, args) {
     return JSON.stringify({ data, aberto: false, livres: [], motivo: "Fechado neste dia." });
   }
 
-  // 2) Agendamentos do dia (ignora cancelados)
-  const agRes = await fetch(
-    `${base}/rest/v1/agendamentos?data_hora=gte.${encodeURIComponent(
+  // 2) Agendamentos do dia (ignora cancelados) — consulta VIEW pública segura ou tabela
+  let agRes = await fetch(
+    `${base}/rest/v1/horarios_ocupados?data_hora=gte.${encodeURIComponent(
       start
-    )}&data_hora=lt.${encodeURIComponent(end)}&status=neq.cancelado&select=data_hora`,
+    )}&data_hora=lt.${encodeURIComponent(end)}&select=data_hora`,
     { headers: sbHeaders(key) }
   );
+  if (!agRes.ok) {
+    agRes = await fetch(
+      `${base}/rest/v1/agendamentos?data_hora=gte.${encodeURIComponent(
+        start
+      )}&data_hora=lt.${encodeURIComponent(end)}&status=neq.cancelado&select=data_hora`,
+      { headers: sbHeaders(key) }
+    );
+  }
   if (!agRes.ok) {
     return JSON.stringify({ erro: "Falha ao ler agendamentos.", status: agRes.status });
   }
@@ -287,12 +307,16 @@ async function toolCriarAgendamento(env, args, extras) {
   if (!base || !key) return JSON.stringify({ erro: "Supabase não configurado no servidor." });
 
   const nome = String(args?.cliente_nome || "").trim();
-  const fone = String(args?.cliente_telefone || "").replace(/\D/g, "");
+  const fone = sanitizeBrazilianPhone(args?.cliente_telefone);
   const servicoId = String(args?.servico_id || "").trim();
   const dataHora = normalizeDataHora(args?.data_hora);
 
-  if (nome.length < 2) return JSON.stringify({ erro: "cliente_nome inválido." });
-  if (fone.length < 8) return JSON.stringify({ erro: "cliente_telefone inválido. Envie DDD + número." });
+  if (nome.length < 2) return JSON.stringify({ erro: "cliente_nome inválido (mínimo 2 caracteres)." });
+  if (!fone) {
+    return JSON.stringify({
+      erro: "cliente_telefone inválido. Informe um número brasileiro com DDD (ex.: 11999998888 ou 1133334444).",
+    });
+  }
   if (!isValidUuid(servicoId)) return JSON.stringify({ erro: "servico_id inválido (UUID esperado)." });
   if (!dataHora) return JSON.stringify({ erro: "data_hora inválida. Use ISO ex.: 2026-09-15T14:30:00-03:00." });
   if (new Date(dataHora).getTime() < Date.now() - 5 * 60 * 1000) {
@@ -333,6 +357,13 @@ async function toolCriarAgendamento(env, args, extras) {
   });
   if (!insRes.ok) {
     const t = await insRes.text().catch(() => "");
+    // Trata colisão de chave única de double-booking (idx_agendamentos_sem_conflito / Postgres 23505)
+    if (t.includes("idx_agendamentos_sem_conflito") || t.includes("23505") || t.includes("duplicate key")) {
+      return JSON.stringify({
+        erro: `O horário ${slot} acabou de ser reservado por outro cliente neste exato instante. Por favor, escolha outro horário.`,
+        conflito: true,
+      });
+    }
     return JSON.stringify({ erro: "Falha ao salvar agendamento.", status: insRes.status, detalhes: t.slice(0, 300) });
   }
   const row = (await insRes.json().catch(() => []))[0] || {};
@@ -637,6 +668,9 @@ export async function onRequestPost(context) {
     const dbg = { telegram: "skipped" };
     const extras = { context, env, dbg };
     if (!message) return json({ error: "Campo 'message' é obrigatório." }, 400);
+    if (message.length > 1000) {
+      return json({ error: "Mensagem excede o limite máximo permitido de 1000 caracteres." }, 400);
+    }
 
     const safeHistory = history
       .filter(
@@ -750,6 +784,19 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: JSON_HEADERS });
 }
 
-export async function onRequestGet() {
-  return json({ error: "Use POST com { message, history }." }, 405);
+export async function onRequestGet(context) {
+  try {
+    const env = context?.env || {};
+    const { base, key } = supaCfg(env);
+    if (!base || !key) return json({ servicos: [] });
+    const catRes = await fetch(
+      `${base}/rest/v1/servicos?ativo=eq.true&select=id,nome,preco,duracao_minutos&order=nome`,
+      { headers: sbHeaders(key) }
+    );
+    if (!catRes.ok) return json({ servicos: [] });
+    const list = await catRes.json().catch(() => []);
+    return json({ servicos: Array.isArray(list) ? list : [] });
+  } catch {
+    return json({ servicos: [] });
+  }
 }

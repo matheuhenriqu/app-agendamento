@@ -1,15 +1,11 @@
-/* Painel administrativo — Vanilla JS + Supabase REST (anon key) */
+/* Painel administrativo — Vanilla JS + Proxy Seguro /api/admin (Server-Side Auth) */
 (function () {
   "use strict";
 
   // ---- Config -----------------------------------------------------------
-  var SUPABASE_URL = "https://muflldkxijpbwklbojto.supabase.co";
-  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11ZmxsZGt4aWpwYndrbGJvanRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNzg0MjIsImV4cCI6MjEwNDY1NDQyMn0.oFkPVg7uUG724jVzlWp6DFwT4rK-QYkoy73r-qzEa0A";
-  // TROQUE o PIN antes de publicar. Gate simples contra curiosos
-  // (não é segurança real: o código-fonte é visível no navegador).
-  var ADMIN_PIN = "1234";
-  var SESSION_KEY = "adminAuth";
+  var SESSION_PIN_KEY = "adminAuthPin";
   var TZ = "America/Sao_Paulo";
+  var currentPin = "";
 
   // ---- DOM --------------------------------------------------------------
   var lock = document.getElementById("lock");
@@ -46,18 +42,6 @@
       })[0].value;
     };
     return g("year") + "-" + g("month") + "-" + g("day");
-  }
-
-  function dayRange(ymd) {
-    var d = new Date(ymd + "T12:00:00-03:00");
-    var next = new Date(d);
-    next.setDate(d.getDate() + 1);
-    var fmt = function (x) {
-      var m = String(x.getMonth() + 1);
-      var day = String(x.getDate());
-      return x.getFullYear() + "-" + (m.length < 2 ? "0" + m : m) + "-" + (day.length < 2 ? "0" + day : day);
-    };
-    return { start: fmt(d) + "T00:00:00-03:00", end: fmt(next) + "T00:00:00-03:00" };
   }
 
   function fmtTime(iso) {
@@ -98,41 +82,28 @@
     state.className = "state" + (isError ? " error" : "");
   }
 
-  function sbHeaders() {
-    return {
-      apikey: SUPABASE_ANON_KEY,
-      authorization: "Bearer " + SUPABASE_ANON_KEY,
-      "content-type": "application/json",
-      prefer: "return=representation",
-    };
-  }
-
-  // ---- Data -------------------------------------------------------------
+  // ---- Data via Backend Serverless Seguro (/api/admin) -------------------
   function loadDay() {
     var ymd = dateInput.value || todaySP();
-    var range = dayRange(ymd);
     setState("Carregando agendamentos de " + ymd + "…", false);
     refreshBtn.disabled = true;
 
-    var url =
-      SUPABASE_URL +
-      "/rest/v1/agendamentos?data_hora=gte." +
-      encodeURIComponent(range.start) +
-      "&data_hora=lt." +
-      encodeURIComponent(range.end) +
-      "&select=*,servicos(nome,preco)&order=data_hora.asc";
-
-    return fetch(url, { headers: sbHeaders() })
+    return fetch("/api/admin?date=" + encodeURIComponent(ymd), {
+      headers: {
+        "x-admin-pin": currentPin,
+      },
+    })
       .then(function (res) {
-        return res.text().then(function (body) {
-          var data = {};
-          try {
-            data = JSON.parse(body);
-          } catch (e) {
-            data = { raw: body };
-          }
-          if (!res.ok) throw new Error("HTTP " + res.status + ": " + body.slice(0, 200));
-          return Array.isArray(data) ? data : [];
+        if (res.status === 401) {
+          try { sessionStorage.removeItem(SESSION_PIN_KEY); } catch (e) {}
+          currentPin = "";
+          lock.hidden = false;
+          app.hidden = true;
+          throw new Error("Sessão expirada ou PIN incorreto. Digite novamente.");
+        }
+        return res.json().then(function (body) {
+          if (!res.ok) throw new Error(body.error || "HTTP " + res.status);
+          return body.agendamentos || [];
         });
       })
       .then(function (list) {
@@ -140,8 +111,8 @@
         setState(list.length ? "" : "Nenhum agendamento para " + ymd + ".", false);
       })
       .catch(function (err) {
-        console.error("Erro retornado pela API:", err);
-        setState("Falha ao carregar: " + err.message + " (verifique RLS no Supabase).", true);
+        console.error("Erro no painel:", err);
+        setState("Falha ao carregar: " + err.message, true);
       })
       .then(function () {
         refreshBtn.disabled = false;
@@ -165,40 +136,41 @@
       var isCancelled = st === "cancelado";
 
       html +=
-        "<tr>" +
-        '<td class="time">' +
+        '<tr class="agenda-row">' +
+        '<td class="cell-time" data-label="Horário"><span class="time">' +
         esc(fmtTime(a.data_hora)) +
-        "</td>" +
-        "<td>" +
+        "</span></td>" +
+        '<td class="cell-client" data-label="Cliente"><span class="client-name">' +
         esc(a.cliente_nome) +
-        "</td>" +
-        '<td><a class="wa" href="' +
+        "</span></td>" +
+        '<td class="cell-wa" data-label="WhatsApp"><a class="wa" href="' +
         esc(wa.href) +
-        '" target="_blank" rel="noopener">💬 ' +
+        '" target="_blank" rel="noopener">' +
+        '<span class="wa-icon">💬</span> ' +
         esc(wa.label) +
         "</a></td>" +
-        "<td>" +
+        '<td class="cell-svc" data-label="Serviço"><span class="svc-name">' +
         esc(svc) +
-        "</td>" +
-        "<td>" +
+        "</span></td>" +
+        '<td class="cell-price" data-label="Valor"><span class="price-val">' +
         esc(price) +
-        "</td>" +
-        '<td><span class="badge ' +
+        "</span></td>" +
+        '<td class="cell-status" data-label="Status"><span class="badge ' +
         statusClass(st) +
         '">' +
         esc(statusLabel(st)) +
         "</span></td>" +
-        '<td><div class="actions">' +
+        '<td class="cell-actions" data-label="Ações"><div class="actions">' +
         '<button type="button" class="btn-done" data-id="' +
         esc(a.id) +
         '" ' +
         (isDone ? "disabled" : "") +
-        ">Concluir</button>" +
+        ">✓ Concluir</button>" +
         '<button type="button" class="btn-cancel" data-id="' +
         esc(a.id) +
         '" ' +
         (isCancelled ? "disabled" : "") +
-        ">Cancelar</button>" +
+        ">✕ Cancelar</button>" +
         "</div></td>" +
         "</tr>";
     });
@@ -212,21 +184,31 @@
 
   function setStatus(id, status) {
     setState("Atualizando status…", false);
-    return fetch(SUPABASE_URL + "/rest/v1/agendamentos?id=eq." + encodeURIComponent(id), {
+    return fetch("/api/admin", {
       method: "PATCH",
-      headers: sbHeaders(),
-      body: JSON.stringify({ status: status }),
+      headers: {
+        "content-type": "application/json",
+        "x-admin-pin": currentPin,
+      },
+      body: JSON.stringify({ id: id, status: status }),
     })
       .then(function (res) {
-        return res.text().then(function (body) {
-          if (!res.ok) throw new Error("HTTP " + res.status + ": " + body.slice(0, 200));
+        if (res.status === 401) {
+          try { sessionStorage.removeItem(SESSION_PIN_KEY); } catch (e) {}
+          currentPin = "";
+          lock.hidden = false;
+          app.hidden = true;
+          throw new Error("Não autorizado.");
+        }
+        return res.json().then(function (body) {
+          if (!res.ok) throw new Error(body.error || "HTTP " + res.status);
         });
       })
       .then(function () {
         return loadDay();
       })
       .catch(function (err) {
-        console.error("Erro retornado pela API:", err);
+        console.error("Erro ao atualizar status:", err);
         setState("Falha ao atualizar: " + err.message, true);
       });
   }
@@ -242,7 +224,7 @@
   dateInput.addEventListener("change", loadDay);
   refreshBtn.addEventListener("click", loadDay);
 
-  // ---- PIN gate ---------------------------------------------------------
+  // ---- PIN gate (Server-Side Auth) --------------------------------------
   function unlock() {
     lock.hidden = true;
     app.hidden = false;
@@ -252,27 +234,67 @@
 
   lockForm.addEventListener("submit", function (ev) {
     ev.preventDefault();
-    if (pinInput.value === ADMIN_PIN) {
-      try {
-        sessionStorage.setItem(SESSION_KEY, "1");
-      } catch (e) {
-        /* sessionStorage indisponível: segue sem persistir */
-      }
-      lockError.hidden = true;
-      unlock();
-    } else {
-      lockError.hidden = false;
-      pinInput.value = "";
-      pinInput.focus();
-    }
+    var pin = String(pinInput.value || "").trim();
+    if (!pin) return;
+
+    var submitBtn = lockForm.querySelector("button[type=submit]");
+    submitBtn.disabled = true;
+    lockError.hidden = true;
+
+    fetch("/api/admin", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-admin-pin": pin,
+      },
+      body: JSON.stringify({ pin: pin }),
+    })
+      .then(function (res) {
+        if (res.ok) {
+          currentPin = pin;
+          try {
+            sessionStorage.setItem(SESSION_PIN_KEY, pin);
+          } catch (e) {}
+          lockError.hidden = true;
+          unlock();
+        } else {
+          lockError.textContent = "PIN incorreto. Tente novamente.";
+          lockError.hidden = false;
+          pinInput.value = "";
+          pinInput.focus();
+        }
+      })
+      .catch(function (err) {
+        console.error("Erro ao conectar:", err);
+        lockError.textContent = "Falha de conexão com o servidor.";
+        lockError.hidden = false;
+      })
+      .then(function () {
+        submitBtn.disabled = false;
+      });
   });
 
   // ---- Boot -------------------------------------------------------------
-  var authed = false;
   try {
-    authed = sessionStorage.getItem(SESSION_KEY) === "1";
+    currentPin = sessionStorage.getItem(SESSION_PIN_KEY) || "";
   } catch (e) {
-    authed = false;
+    currentPin = "";
   }
-  if (authed) unlock();
+  if (currentPin) {
+    // Valida se o PIN salvo na sessão ainda é válido
+    fetch("/api/admin", {
+      method: "POST",
+      headers: { "x-admin-pin": currentPin },
+    }).then(function (res) {
+      if (res.ok) {
+        unlock();
+      } else {
+        try { sessionStorage.removeItem(SESSION_PIN_KEY); } catch (e) {}
+        currentPin = "";
+      }
+    }).catch(function () {
+      // Se offline/falha de rede, deixa formulário de PIN visível
+    });
+  }
 })();
+

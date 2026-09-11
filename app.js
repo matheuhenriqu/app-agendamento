@@ -2,18 +2,8 @@
 (function () {
   "use strict";
 
-  // ---- Config pública (publishable key é segura no frontend) ----
-  var SUPABASE_URL = "https://muflldkxijpbwklbojto.supabase.co";
-  var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11ZmxsZGt4aWpwYndrbGJvanRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNzg0MjIsImV4cCI6MjEwNDY1NDQyMn0.oFkPVg7uUG724jVzlWp6DFwT4rK-QYkoy73r-qzEa0A";
-
-  var supabaseClient = null;
-  if (window.supabase && window.supabase.createClient) {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  } else {
-    console.warn("Supabase CDN não carregou; seguindo só com o chat.");
-  }
-
-  // ---- Estado ----
+  // ---- Config & Inicialização ----
+  // Obtém catálogo via /api/chat (servidor Edge) para desacoplar chaves do cliente
   var history = []; // [{ role: 'user'|'assistant', content }]
   var servicosCache = [];
 
@@ -22,7 +12,7 @@
   var form = document.getElementById("form");
   var input = document.getElementById("input");
   var typing = document.getElementById("typing");
-  var sendBtn = form.querySelector("button[type=submit]");
+  var sendBtn = form ? form.querySelector("button[type=submit]") : null;
 
   function now() {
     return new Date().toLocaleTimeString("pt-BR", {
@@ -53,25 +43,23 @@
   }
 
   function setTyping(on) {
+    if (!typing) return;
     typing.hidden = !on;
     if (on) scrollToBottom();
   }
 
-  // ---- Supabase: carrega serviços ativos para saudação ----
   function loadServicos() {
-    if (!supabaseClient) return Promise.resolve([]);
-    return supabaseClient
-      .from("servicos")
-      .select("nome,preco,duracao_minutos")
-      .eq("ativo", true)
-      .order("nome")
+    return fetch("/api/chat")
       .then(function (res) {
-        if (res.error) throw res.error;
-        servicosCache = res.data || [];
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        servicosCache = Array.isArray(data.servicos) ? data.servicos : [];
         return servicosCache;
       })
       .catch(function (err) {
-        console.warn("Falha ao carregar serviços:", err);
+        console.warn("Consulta direta via /api/chat falhou:", err);
         return [];
       });
   }
