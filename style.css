@@ -1,93 +1,84 @@
 /* ==========================================================================
-   Agendamento Online — Design System "Cores Duras" & Alto Contraste
-   Estética: Cyber/Fintech Premium, Dark Surfaces, Neon Emerald & Cobalt Accents
+   WhatsApp Design System — Réplica Fiel (WhatsApp Web & Mobile)
+   Cores Oficiais, Balões com Rabicho (Tails), Doodles e Tipografia Nativa
    ========================================================================== */
 
 :root {
-  /* Paleta Base: Grafite e Obsidiana Profunda */
-  --bg-canvas: #070a11;
-  --bg-surface: #0e1524;
-  --bg-surface-elevated: #162035;
-  --bg-surface-input: #121a2c;
+  /* Cores Oficiais do WhatsApp */
+  --wa-teal-dark: #008069;         /* Header mobile WhatsApp oficial */
+  --wa-teal-deep: #075e54;         /* Header clássico / tom de sombra */
+  --wa-green-action: #00a884;      /* Botão de envio / botões de ação */
+  --wa-green-action-hover: #02906f;
+  --wa-accent-blue: #53bdeb;       /* Double check azul de lido (✓✓) */
+  --wa-badge-green: #25d366;       /* Selo verificado WhatsApp */
   
-  /* Bordas Sólidas e Nítidas (Cores Duras) */
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-line: #1e2c44;
-  --border-strong: #2a3d5e;
+  /* Superfícies e Balões */
+  --wa-bg-desktop: #d1d7db;        /* Fundo do WhatsApp Web no desktop */
+  --wa-chat-bg: #efeae2;           /* Fundo clássico com doodles */
+  --wa-bubble-in: #ffffff;         /* Balão recebido (branco) */
+  --wa-bubble-out: #d9fdd3;        /* Balão enviado (verde claro WhatsApp) */
+  --wa-bubble-out-dark: #c1f2b8;
   
-  /* Cores de Destaque Firmes e Saturadas */
-  --accent-neon: #00e575;
-  --accent-neon-glow: rgba(0, 229, 117, 0.25);
-  --accent-neon-hover: #00ff83;
-  --accent-neon-dark: #042714;
+  /* Pílulas de Sistema e Criptografia */
+  --wa-sys-date-bg: #ffffff;
+  --wa-sys-date-text: #54656f;
+  --wa-sys-encrypt-bg: #ffeecd;
+  --wa-sys-encrypt-text: #54656f;
   
-  --accent-cobalt: #2563eb;
-  --accent-cobalt-glow: rgba(37, 99, 235, 0.3);
-  --accent-amber: #f59e0b;
-  --accent-crimson: #ef4444;
+  /* Textos e Ícones */
+  --wa-text-primary: #111b21;
+  --wa-text-secondary: #667781;
+  --wa-text-muted: #8696a0;
+  --wa-icon-default: #54656f;
+  --wa-icon-light: #ffffff;
   
-  /* Balões de Conversa */
-  --bubble-in-bg: #151f33;
-  --bubble-in-border: #23334e;
-  --bubble-in-text: #f8fafc;
-  
-  --bubble-out-bg: #00e575;
-  --bubble-out-text: #032111;
+  /* Sombras Oficiais */
+  --wa-bubble-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  --wa-header-shadow: 0 1px 3px rgba(11, 20, 26, 0.15);
+  --wa-card-shadow: 0 6px 18px rgba(11, 20, 26, 0.08), 0 2px 4px rgba(11, 20, 26, 0.04);
   
   /* Tipografia */
-  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
-  --font-display: "Outfit", system-ui, -apple-system, sans-serif;
-  
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  
-  /* Raios e Sombras */
-  --radius-phone: 24px;
-  --radius-bubble: 18px;
-  --radius-chip: 999px;
-  --radius-control: 14px;
+  --wa-font: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html, body {
   height: 100%;
-  font-family: var(--font-sans);
-  background: var(--bg-canvas);
-  color: var(--text-primary);
-  overflow-x: hidden;
+  font-family: var(--wa-font);
+  background: var(--wa-bg-desktop);
+  color: var(--wa-text-primary);
+  overflow: hidden;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-body {
-  display: flex;
-  justify-content: center;
-  align-items: stretch;
-  min-height: 100vh;
-  position: relative;
-}
-
-/* Fundo atmosférico com gradiente sutil para telas médias e grandes */
-.ambient-glow {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 50% -20%, rgba(0, 229, 117, 0.08) 0%, transparent 60%),
-    radial-gradient(circle at 10% 90%, rgba(37, 99, 235, 0.06) 0%, transparent 50%),
-    radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 28px 28px;
-  z-index: 0;
 }
 
 /* ==========================================================================
-   Container Principal (Mobile First + Card Desktop)
+   Faixa Superior do WhatsApp Web (Desktop)
+   ========================================================================== */
+.web-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  background: var(--wa-bg-desktop);
+}
+
+.web-topbar-stripe {
+  width: 100%;
+  height: 127px;
+  background-color: var(--wa-teal-dark);
+}
+
+/* ==========================================================================
+   Container Principal (Mobile = Tela Cheia, Desktop = Janela WhatsApp Web)
    ========================================================================== */
 .phone {
   position: relative;
@@ -95,44 +86,69 @@ body {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 480px;
-  height: 100vh;
-  background: var(--bg-surface);
-  border-left: 1px solid var(--border-line);
-  border-right: 1px solid var(--border-line);
-  box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
+  height: 100dvh;
+  margin: 0 auto;
+  background: var(--wa-chat-bg);
+  box-shadow: none;
 }
 
-@media (min-width: 520px) {
+@media (min-width: 600px) {
   body {
-    padding: 24px 16px;
+    display: flex;
     align-items: center;
+    justify-content: center;
+    padding: 20px;
   }
+
   .phone {
-    height: min(840px, calc(100vh - 48px));
-    border-radius: var(--radius-phone);
-    border: 1.5px solid var(--border-line);
+    max-width: 520px;
+    height: min(840px, calc(100vh - 40px));
+    border-radius: 12px;
     overflow: hidden;
-    box-shadow:
-      0 24px 70px -12px rgba(0, 0, 0, 0.8),
-      0 0 0 1px rgba(255, 255, 255, 0.05),
-      0 0 35px -8px var(--accent-neon-glow);
+    box-shadow: var(--wa-card-shadow), 0 12px 28px rgba(0, 0, 0, 0.16);
   }
 }
 
 /* ==========================================================================
-   Cabeçalho do Chat
+   Cabeçalho Oficial do WhatsApp (Teal Green)
    ========================================================================== */
 .chat-header {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px 20px;
-  background: var(--bg-surface-elevated);
-  border-bottom: 1.5px solid var(--border-line);
+  justify-content: space-between;
+  height: 60px;
+  padding: 0 12px;
+  background: var(--wa-teal-dark);
+  color: #ffffff;
+  box-shadow: var(--wa-header-shadow);
   position: relative;
-  z-index: 2;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .avatar-wrap {
@@ -141,135 +157,178 @@ body {
 }
 
 .avatar {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #1b2842 0%, #0d1627 100%);
-  border: 1.5px solid var(--border-strong);
-  color: var(--accent-neon);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #dfe5e7;
+  color: #54656f;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
-.status-indicator {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--accent-neon);
-  border: 2.5px solid var(--bg-surface-elevated);
-  box-shadow: 0 0 8px var(--accent-neon);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .header-info {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  justify-content: center;
   min-width: 0;
 }
 
-.header-title-row {
+.header-name-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
 }
 
 .header-name {
-  font-family: var(--font-display);
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-size: 1.02rem;
+  font-weight: 500;
   color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
-.header-badge {
-  font-size: 0.68rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 2px 7px;
-  border-radius: 6px;
-  background: rgba(0, 229, 117, 0.12);
-  color: var(--accent-neon);
-  border: 1px solid rgba(0, 229, 117, 0.3);
+.wa-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .header-status {
-  display: flex;
-  align-items: center;
-  gap: 7px;
   font-size: 0.78rem;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.2s;
+}
+
+.header-status.typing-active {
+  color: #d9fdd3;
+  font-style: italic;
   font-weight: 500;
 }
 
-.dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent-neon);
-  box-shadow: 0 0 6px var(--accent-neon);
-  animation: pulse-dot 2s infinite ease-in-out;
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
+.btn-icon {
+  background: none;
+  border: none;
+  color: #ffffff;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-icon:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 /* ==========================================================================
-   Feed de Mensagens
+   Feed com Padrão de Doodles do WhatsApp
    ========================================================================== */
 .feed {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 16px;
+  overflow-x: hidden;
+  padding: 16px 16px 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   scroll-behavior: smooth;
-  background:
-    radial-gradient(circle at 50% 50%, rgba(22, 32, 53, 0.4) 0%, transparent 80%),
-    var(--bg-surface);
+  background-color: var(--wa-chat-bg);
+  /* Padrão geométrico suave estilo WhatsApp Doodle */
+  background-image: radial-gradient(#d3cbbf 1px, transparent 1px), radial-gradient(#d3cbbf 1px, var(--wa-chat-bg) 1px);
+  background-size: 32px 32px;
+  background-position: 0 0, 16px 16px;
+  position: relative;
 }
 
 .feed::-webkit-scrollbar {
   width: 6px;
 }
+.feed::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
 .feed::-webkit-scrollbar-track {
   background: transparent;
 }
-.feed::-webkit-scrollbar-thumb {
-  background: var(--border-line);
-  border-radius: 999px;
-}
-.feed::-webkit-scrollbar-thumb:hover {
-  background: var(--border-strong);
+
+/* ==========================================================================
+   Pílulas de Sistema: Criptografia e Data (HOJE)
+   ========================================================================== */
+.system-bubble {
+  align-self: center;
+  max-width: 90%;
+  text-align: center;
+  border-radius: 7.5px;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  box-shadow: var(--wa-bubble-shadow);
+  user-select: none;
 }
 
+.encryption-note {
+  background: var(--wa-sys-encrypt-bg);
+  color: var(--wa-sys-encrypt-text);
+  padding: 6px 14px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.encryption-note .lock-icon {
+  font-size: 0.8rem;
+}
+
+.date-pill {
+  background: var(--wa-sys-date-bg);
+  color: var(--wa-sys-date-text);
+  padding: 4px 12px;
+  margin-bottom: 8px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+/* ==========================================================================
+   Balões de Mensagem com Rabicho Autêntico (Tails)
+   ========================================================================== */
 .msg {
+  position: relative;
   max-width: 82%;
-  padding: 12px 16px;
-  border-radius: var(--radius-bubble);
-  font-size: 0.94rem;
-  line-height: 1.5;
+  padding: 7px 11px 8px 12px;
+  border-radius: 7.5px;
+  font-size: 0.92rem;
+  line-height: 1.42;
   word-wrap: break-word;
   white-space: pre-wrap;
-  position: relative;
-  animation: msg-slide 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--wa-bubble-shadow);
+  animation: wa-bubble-appear 0.16s ease-out forwards;
 }
 
-@keyframes msg-slide {
+@keyframes wa-bubble-appear {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.97);
+    transform: translateY(4px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -277,225 +336,280 @@ body {
   }
 }
 
-/* Balão da Assistente (Dark Card com borda nítida) */
+/* Balão Recebido (Assistente / Bot) */
 .msg.in {
   align-self: flex-start;
-  background: var(--bubble-in-bg);
-  border: 1.5px solid var(--bubble-in-border);
-  color: var(--bubble-in-text);
-  border-top-left-radius: 4px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  background: var(--wa-bubble-in);
+  color: var(--wa-text-primary);
+  border-top-left-radius: 0;
+  margin-left: 8px;
 }
 
-/* Balão do Usuário (Verde Neon de Alto Impacto) */
+/* Rabicho triangular esquerdo do balão recebido */
+.msg.in::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-top: 0px solid transparent;
+  border-bottom: 12px solid transparent;
+  border-right: 8px solid var(--wa-bubble-in);
+}
+
+/* Balão Enviado (Usuário) */
 .msg.out {
   align-self: flex-end;
-  background: var(--bubble-out-bg);
-  color: var(--bubble-out-text);
-  font-weight: 600;
-  border: 1.5px solid var(--accent-neon-hover);
-  border-top-right-radius: 4px;
-  box-shadow: 0 4px 16px var(--accent-neon-glow);
+  background: var(--wa-bubble-out);
+  color: var(--wa-text-primary);
+  border-top-right-radius: 0;
+  margin-right: 8px;
 }
 
+/* Rabicho triangular direito do balão enviado */
+.msg.out::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -8px;
+  width: 0;
+  height: 0;
+  border-top: 0px solid transparent;
+  border-bottom: 12px solid transparent;
+  border-left: 8px solid var(--wa-bubble-out);
+}
+
+/* Metadados de Hora e Checkmarks (✓✓) */
 .msg .time {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  float: right;
   font-size: 0.68rem;
-  font-weight: 500;
-  text-align: right;
-  margin-top: 6px;
-  letter-spacing: 0.02em;
-}
-
-.msg.in .time {
-  color: var(--text-muted);
+  color: var(--wa-text-secondary);
+  margin-left: 10px;
+  margin-top: 5px;
+  line-height: 1;
+  user-select: none;
 }
 
 .msg.out .time {
-  color: rgba(3, 33, 17, 0.7);
+  color: #53bdeb; /* Cor azul do check WhatsApp */
+}
+
+.msg .time .wa-time-str {
+  color: var(--wa-text-secondary);
+}
+
+.msg .wa-check {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
 }
 
 /* ==========================================================================
-   Indicador de Digitação
+   Indicador de Digitação do WhatsApp
    ========================================================================== */
-.typing {
+.typing-bubble {
+  align-self: flex-start;
+  margin-left: 8px;
+  margin-bottom: 6px;
+  background: var(--wa-bubble-in);
+  padding: 10px 14px;
+  border-radius: 7.5px;
+  border-top-left-radius: 0;
+  box-shadow: var(--wa-bubble-shadow);
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 0 16px 10px;
-  background: var(--bg-surface-elevated);
-  border: 1px solid var(--border-line);
-  border-radius: var(--radius-control);
-  padding: 10px 16px;
-  width: fit-content;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  position: relative;
+  animation: wa-bubble-appear 0.16s ease-out;
 }
 
-.typing[hidden] {
+.typing-bubble::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-bottom: 12px solid transparent;
+  border-right: 8px solid var(--wa-bubble-in);
+}
+
+.typing-bubble[hidden] {
   display: none;
 }
 
-.typing-label {
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.typing-dots {
+.wa-typing-dots {
   display: flex;
-  gap: 5px;
+  gap: 4px;
   align-items: center;
 }
 
-.typing-dots span {
+.wa-typing-dots span {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent-neon);
-  box-shadow: 0 0 6px var(--accent-neon);
-  animation: typing-blink 1.2s infinite ease-in-out;
+  background: var(--wa-text-muted);
+  animation: wa-typing-wave 1.4s infinite ease-in-out;
 }
 
-.typing-dots span:nth-child(2) {
+.wa-typing-dots span:nth-child(2) {
   animation-delay: 0.2s;
 }
-.typing-dots span:nth-child(3) {
+.wa-typing-dots span:nth-child(3) {
   animation-delay: 0.4s;
 }
 
-@keyframes typing-blink {
+@keyframes wa-typing-wave {
   0%, 60%, 100% {
-    opacity: 0.3;
+    opacity: 0.35;
     transform: translateY(0);
   }
   30% {
-    opacity: 1;
+    opacity: 0.9;
     transform: translateY(-4px);
   }
 }
 
 /* ==========================================================================
-   Chips de Ação Rápida (Estilo Pílulas com Cores Duras)
+   Chips de Ação Rápida (Botões Interativos estilo WhatsApp Business)
    ========================================================================== */
-.chips {
+.chips-container {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   overflow-x: auto;
-  padding: 10px 16px;
+  padding: 6px 12px;
   background: transparent;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  -webkit-overflow-scrolling: touch;
 }
 
-.chips::-webkit-scrollbar {
+.chips-container::-webkit-scrollbar {
   display: none;
 }
 
 .chip {
   flex: 0 0 auto;
   scroll-snap-align: start;
-  border: 1.5px solid var(--border-strong);
-  background: var(--bg-surface-elevated);
-  color: var(--text-primary);
-  border-radius: var(--radius-chip);
-  padding: 9px 16px;
-  font-size: 0.84rem;
-  font-weight: 600;
+  background: #ffffff;
+  color: var(--wa-teal-dark);
+  border: 1px solid rgba(0, 128, 105, 0.25);
+  border-radius: 18px;
+  padding: 7px 14px;
+  font-family: var(--wa-font);
+  font-size: 0.82rem;
+  font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 2px rgba(11, 20, 26, 0.08);
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
 }
 
 .chip:hover {
-  background: var(--accent-neon);
-  color: var(--accent-neon-dark);
-  border-color: var(--accent-neon);
-  box-shadow: 0 4px 14px var(--accent-neon-glow);
-  transform: translateY(-1px);
+  background: #e7f7f4;
+  border-color: var(--wa-teal-dark);
+  box-shadow: 0 2px 5px rgba(0, 128, 105, 0.2);
 }
 
 .chip:active {
   transform: scale(0.96);
 }
 
-.chip-icon {
-  font-size: 1rem;
-}
-
 /* ==========================================================================
-   Área de Envio (Composer)
+   Barra de Digitação Oficial do WhatsApp (Composer)
    ========================================================================== */
-.composer {
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-  background: var(--bg-surface-elevated);
-  border-top: 1.5px solid var(--border-line);
-}
-
-.input-wrapper {
+.composer-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: var(--bg-surface-input);
-  border: 1.5px solid var(--border-line);
-  border-radius: var(--radius-control);
-  padding: 6px 6px 6px 16px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  gap: 8px;
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  background: transparent;
+  position: relative;
+  z-index: 10;
+  flex-shrink: 0;
 }
 
-.input-wrapper:focus-within {
-  border-color: var(--accent-neon);
-  box-shadow: 0 0 0 3px var(--accent-neon-glow);
+.input-pill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 3px 8px;
+  min-height: 46px;
+  box-shadow: 0 1px 2px rgba(11, 20, 26, 0.12);
+  gap: 6px;
 }
 
-.composer input {
+.pill-btn {
+  background: none;
+  border: none;
+  color: var(--wa-icon-default);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.pill-btn:hover {
+  color: var(--wa-text-primary);
+  background: rgba(11, 20, 26, 0.05);
+}
+
+.input-pill input {
   flex: 1;
   border: none;
   background: transparent;
-  color: #ffffff;
-  font-family: var(--font-sans);
-  font-size: 0.95rem;
+  font-family: var(--wa-font);
+  font-size: 0.96rem;
+  color: var(--wa-text-primary);
   outline: none;
+  padding: 6px 2px;
 }
 
-.composer input::placeholder {
-  color: var(--text-muted);
+.input-pill input::placeholder {
+  color: var(--wa-text-muted);
 }
 
-.composer button {
-  width: 44px;
-  height: 44px;
+/* Botão Redondo Verde do WhatsApp */
+.circle-action-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--wa-green-action);
   border: none;
-  border-radius: 10px;
-  background: var(--accent-neon);
-  color: var(--accent-neon-dark);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: all 0.16s ease;
-  box-shadow: 0 2px 10px var(--accent-neon-glow);
+  box-shadow: 0 2px 4px rgba(11, 20, 26, 0.22);
+  transition: background 0.15s, transform 0.12s, box-shadow 0.15s;
 }
 
-.composer button:hover {
-  background: var(--accent-neon-hover);
-  transform: translateY(-1px) scale(1.02);
+.circle-action-btn:hover {
+  background: var(--wa-green-action-hover);
+  box-shadow: 0 3px 6px rgba(11, 20, 26, 0.28);
 }
 
-.composer button:active {
-  transform: scale(0.94);
+.circle-action-btn:active {
+  transform: scale(0.92);
 }
 
-.composer button:disabled {
-  opacity: 0.4;
+.circle-action-btn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
   transform: none;
-  box-shadow: none;
 }
 
 /* Acessibilidade */
@@ -510,4 +624,3 @@ body {
   white-space: nowrap;
   border-width: 0;
 }
-
