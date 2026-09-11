@@ -60,6 +60,7 @@ drop policy if exists "Leitura publica da agenda" on public.configuracao_agenda;
 drop policy if exists "Insercao anonima de agendamentos" on public.agendamentos;
 drop policy if exists "Leitura anonima de agendamentos por telefone" on public.agendamentos;
 drop policy if exists "Leitura anonima de horarios ocupados" on public.agendamentos;
+drop policy if exists "Atualizacao anonima de status" on public.agendamentos;
 
 -- Serviços: qualquer pessoa (anon) pode ler serviços ativos
 create policy "Leitura publica de servicos ativos"
@@ -98,6 +99,17 @@ create policy "Leitura anonima de horarios ocupados"
   for select
   to anon, authenticated
   using (true);
+
+-- Agendamentos: atualização anonima de status (necessária p/ painel admin.html
+-- via REST com anon key). ATENÇÃO: permite a qualquer portador da anon key
+-- alterar agendamentos — aceitável p/ MVP; em produção prefira Supabase Auth
+-- (role autenticada do dono) ou Edge Function validando o PIN no servidor.
+create policy "Atualizacao anonima de status"
+  on public.agendamentos
+  for update
+  to anon, authenticated
+  using (true)
+  with check (true);
 
 -- ------------------------------------------------------------
 -- Seed: serviços de exemplo

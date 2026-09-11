@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Painel administrativo — agenda do dia." />
+  <title>Painel · Agendamentos</title>
+  <link rel="stylesheet" href="admin.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <!-- Bloqueio por PIN -->
+  <div id="lock" class="lock" role="dialog" aria-modal="true" aria-label="Acesso restrito">
+    <form id="lock-form" class="lock-card" autocomplete="off">
+      <div class="lock-icon" aria-hidden="true">🔒</div>
+      <h1>Acesso restrito</h1>
+      <p>Digite o PIN de 4 a 6 dígitos para ver a agenda.</p>
+      <label class="sr-only" for="pin">PIN de acesso</label>
+      <input
+        id="pin"
+        type="password"
+        inputmode="numeric"
+        pattern="[0-9]*"
+        minlength="4"
+        maxlength="6"
+        placeholder="••••"
+        autofocus
+      />
+      <button type="submit">Entrar</button>
+      <p id="lock-error" class="lock-error" hidden>PIN incorreto. Tente de novo.</p>
+    </form>
+  </div>
+
+  <!-- Painel -->
+  <div id="app" class="app" hidden>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-icon" aria-hidden="true">📅</span>
+        <div>
+          <strong>Painel de Agendamentos</strong>
+          <small id="today-label"></small>
+        </div>
+      </div>
+      <div class="controls">
+        <label class="sr-only" for="date">Filtrar por data</label>
+        <input id="date" type="date" />
+        <button id="refresh" type="button" title="Recarregar dados">↻ Atualizar</button>
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="kpis" aria-label="Resumo do dia">
+        <div class="kpi">
+          <span class="kpi-label">Agendamentos</span>
+          <strong id="kpi-total" class="kpi-value">–</strong>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Faturamento previsto</span>
+          <strong id="kpi-revenue" class="kpi-value">–</strong>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Concluídos</span>
+          <strong id="kpi-done" class="kpi-value">–</strong>
+        </div>
+      </section>
+
+      <p id="state" class="state" role="status"></p>
+
+      <section class="table-wrap">
+        <table class="agenda" aria-label="Lista de agendamentos">
+          <thead>
+            <tr>
+              <th scope="col">Horário</th>
+              <th scope="col">Cliente</th>
+              <th scope="col">WhatsApp</th>
+              <th scope="col">Serviço</th>
+              <th scope="col">Preço</th>
+              <th scope="col">Status</th>
+              <th scope="col">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

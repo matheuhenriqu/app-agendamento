@@ -1,0 +1,199 @@
+/* Painel administrativo — CSS puro, mobile-first */
+:root {
+  --bg: #f1f5f9;
+  --card: #ffffff;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --brand: #075e54;
+  --accent: #25d366;
+  --green-bg: #dcfce7;
+  --green-ink: #166534;
+  --blue-bg: #dbeafe;
+  --blue-ink: #1d4ed8;
+  --red-bg: #fee2e2;
+  --red-ink: #b91c1c;
+  --amber-bg: #fef3c7;
+  --amber-ink: #92400e;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* ---- Bloqueio PIN ---- */
+.lock {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.lock[hidden] { display: none; }
+.lock-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  padding: 32px 28px;
+  width: 100%;
+  max-width: 340px;
+  text-align: center;
+}
+.lock-icon { font-size: 2.2rem; }
+.lock-card h1 { font-size: 1.25rem; margin: 12px 0 4px; }
+.lock-card p { color: var(--muted); font-size: 0.9rem; margin: 0 0 16px; }
+.lock-card input {
+  width: 100%;
+  font-size: 1.5rem;
+  letter-spacing: 0.5em;
+  text-align: center;
+  padding: 12px;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  outline: none;
+  margin-bottom: 12px;
+}
+.lock-card input:focus { border-color: var(--brand); }
+.lock-card button {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lock-error { color: var(--red-ink); font-weight: 600; }
+
+/* ---- Painel ---- */
+.app[hidden] { display: none; }
+.topbar {
+  background: var(--brand);
+  color: #fff;
+  padding: 14px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-icon { font-size: 1.8rem; }
+.brand strong { display: block; font-size: 1.05rem; }
+.brand small { opacity: 0.85; font-size: 0.8rem; }
+.controls { display: flex; gap: 8px; align-items: center; }
+.controls input, .controls button {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+}
+.controls button {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.controls button:disabled { opacity: 0.6; cursor: default; }
+
+.content { max-width: 1080px; margin: 0 auto; padding: 20px 16px 48px; }
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.kpi {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+.kpi-label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+.kpi-value { font-size: 1.5rem; }
+
+.state { color: var(--muted); font-size: 0.9rem; min-height: 1.4em; margin: 0 0 12px; }
+.state.error { color: var(--red-ink); font-weight: 600; }
+
+.table-wrap {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  overflow-x: auto;
+}
+table.agenda { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+table.agenda th, table.agenda td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+table.agenda th { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+table.agenda tr:last-child td { border-bottom: none; }
+.time { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.st-confirmado { background: var(--green-bg); color: var(--green-ink); }
+.st-concluido { background: var(--blue-bg); color: var(--blue-ink); }
+.st-cancelado { background: var(--red-bg); color: var(--red-ink); }
+.st-pendente { background: var(--amber-bg); color: var(--amber-ink); }
+
+.wa {
+  display: inline-block;
+  text-decoration: none;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.actions { display: flex; gap: 6px; }
+.actions button {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.actions button:hover { background: var(--bg); }
+.actions .btn-done { color: var(--blue-ink); border-color: var(--blue-ink); }
+.actions .btn-cancel { color: var(--red-ink); border-color: var(--red-ink); }
+.actions button:disabled { opacity: 0.5; cursor: default; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+@media (max-width: 720px) {
+  .kpis { grid-template-columns: 1fr; }
+  .kpi-value { font-size: 1.3rem; }
+  table.agenda th:nth-child(5), table.agenda td:nth-child(5) { display: none; }
+}
